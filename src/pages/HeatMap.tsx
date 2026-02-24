@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap, LayersControl } from 'r
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import api from '../lib/api';
-import { Loader2, MapPin, Users, Globe, Info } from 'lucide-react';
+import { Loader2, MapPin, Globe } from 'lucide-react';
 
 // Fix Leaflet marker icons
 import iconImg from 'leaflet/dist/images/marker-icon.png';
