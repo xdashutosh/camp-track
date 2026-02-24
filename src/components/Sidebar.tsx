@@ -1,13 +1,13 @@
 import { NavLink } from 'react-router-dom';
 import {
-    History,
     GitGraph,
-    ScrollText,
+    Users,
     Camera,
     LayoutDashboard,
     Map as MapIcon,
     MapPin,
     Layers,
+    Globe,
     ChevronLeft,
     ChevronRight
 } from 'lucide-react';
@@ -23,11 +23,11 @@ const navItems = [
     { icon: MapIcon, label: 'Zones', path: '/zones' },
     { icon: Layers, label: 'Zone Mandals', path: '/zone-mandals' },
     { icon: MapPin, label: 'Booths Management', path: '/booths' },
+    { icon: Globe, label: 'Heat Map', path: '/heat-map' },
+    { icon: Users, label: 'Workers', path: '/workers' },
     { icon: GitGraph, label: 'Organization Chart', path: '/org-chart' },
-    { icon: ScrollText, label: 'System Logs', path: '/logs' },
     { icon: Camera, label: 'Events', path: '/events' },
     { icon: MapIcon, label: 'Live Tracking', path: '/tracking' },
-    { icon: History, label: 'Logs', path: '/logs' },
 ];
 
 interface SidebarProps {

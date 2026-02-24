@@ -1,14 +1,23 @@
 import { useState, useEffect, useRef } from 'react';
 import { OrgChart } from 'd3-org-chart';
-import * as d3 from 'd3';
 import api from '../lib/api';
-import { Loader2, ZoomIn, ZoomOut, Maximize, Share2 } from 'lucide-react';
+import { Loader2, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
+
+interface HierarchyNode {
+    id: string;
+    parentId: string | null;
+    name: string;
+    type: string;
+    color?: string;
+    president?: string;
+    children?: HierarchyNode[];
+}
 
 export const OrgChartPage = () => {
-    const d3Container = useRef(null);
-    const [data, setData] = useState(null);
+    const d3Container = useRef<HTMLDivElement>(null);
+    const [data, setData] = useState<HierarchyNode | null>(null);
     const [loading, setLoading] = useState(true);
-    const chartRef = useRef(null);
+    const chartRef = useRef<any>(null);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -33,12 +42,12 @@ export const OrgChartPage = () => {
             chartRef.current
                 .container(d3Container.current)
                 .data(flattenData(data))
-                .nodeWidth((d) => 220)
-                .nodeHeight((d) => 100)
-                .childrenMargin((d) => 50)
-                .compactMarginBetween((d) => 25)
-                .compactMarginPair((d) => 50)
-                .nodeContent((d) => {
+                .nodeWidth(() => 220)
+                .nodeHeight(() => 100)
+                .childrenMargin(() => 50)
+                .compactMarginBetween(() => 25)
+                .compactMarginPair(() => 50)
+                .nodeContent((d: any) => {
                     const color = getNodeColor(d.data.type, d.data.color);
                     return `
             <div style="background-color:white; position:absolute; width:${d.width}px; height:${d.height}px; border-radius:12px; border: 1px solid #E2E8F0; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
@@ -59,11 +68,14 @@ export const OrgChartPage = () => {
           `;
                 })
                 .render();
+
+            // Auto expand all nodes for first render
+            chartRef.current.expandAll().render().fit();
         }
     }, [data]);
 
-    const flattenData = (node, parentId = null) => {
-        let flattened = [{
+    const flattenData = (node: HierarchyNode, parentId: string | null = null): any[] => {
+        let flattened: any[] = [{
             id: node.id,
             parentId: parentId,
             name: node.name,
@@ -79,7 +91,7 @@ export const OrgChartPage = () => {
         return flattened;
     };
 
-    const getNodeColor = (type, zoneColor) => {
+    const getNodeColor = (type: string, zoneColor?: string) => {
         switch (type) {
             case 'root': return '#4F46E5'; // Indigo
             case 'constituency': return '#6366F1'; // Indigo-500
@@ -93,40 +105,53 @@ export const OrgChartPage = () => {
     const handleZoomIn = () => chartRef.current?.zoomIn();
     const handleZoomOut = () => chartRef.current?.zoomOut();
     const handleFit = () => chartRef.current?.fit();
-    const handleExpandAll = () => chartRef.current?.expandAll().render();
 
     return (
-        <div className="h-full flex flex-col space-y-6">
-            <div className="flex-shrink-0 flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Campaign Organization Chart</h1>
-                    <p className="text-slate-500 text-sm">Visual hierarchy of the entire election campaign system</p>
+        <div className="w-full h-screen bg-slate-50 relative overflow-hidden">
+            {loading ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 bg-white z-50">
+                    <Loader2 className="w-10 h-10 animate-spin mb-4" />
+                    <p className="font-medium text-slate-600">Building Organization Hierarchy...</p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <button onClick={handleFit} className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm" title="Fit to screen">
-                        <Maximize className="w-5 h-5" />
-                    </button>
-                    <div className="flex border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden">
-                        <button onClick={handleZoomOut} className="p-2.5 text-slate-600 hover:bg-slate-50 border-r border-slate-200 transition-all">
-                            <ZoomOut className="w-5 h-5" />
+            ) : (
+                <>
+                    {/* Floating Controls */}
+                    <div className="absolute top-6 right-6 z-10 flex flex-col gap-3">
+                        <button
+                            onClick={handleFit}
+                            className="w-12 h-12 flex items-center justify-center bg-white border border-slate-200 rounded-2xl text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-lg hover:shadow-xl active:scale-95"
+                            title="Fit to Screen"
+                        >
+                            <Maximize className="w-6 h-6" />
                         </button>
-                        <button onClick={handleZoomIn} className="p-2.5 text-slate-600 hover:bg-slate-50 transition-all">
-                            <ZoomIn className="w-5 h-5" />
-                        </button>
+                        <div className="flex flex-col border border-slate-200 rounded-2xl bg-white shadow-lg overflow-hidden">
+                            <button
+                                onClick={handleZoomIn}
+                                className="w-12 h-12 flex items-center justify-center text-slate-600 hover:bg-slate-50 border-b border-slate-200 transition-all active:scale-95"
+                                title="Zoom In"
+                            >
+                                <ZoomIn className="w-6 h-6" />
+                            </button>
+                            <button
+                                onClick={handleZoomOut}
+                                className="w-12 h-12 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-all active:scale-95"
+                                title="Zoom Out"
+                            >
+                                <ZoomOut className="w-6 h-6" />
+                            </button>
+                        </div>
                     </div>
-                </div>
-            </div>
 
-            <div className="flex-1 bg-slate-50 rounded-2xl border border-slate-200 relative overflow-hidden shadow-inner">
-                {loading ? (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400">
-                        <Loader2 className="w-10 h-10 animate-spin mb-4" />
-                        <p className="font-medium">Building organization chart...</p>
-                    </div>
-                ) : (
+                    {/* Chart Container */}
                     <div ref={d3Container} className="w-full h-full cursor-grab active:cursor-grabbing" />
-                )}
-            </div>
+
+                    {/* Floating Info Badge */}
+                    <div className="absolute bottom-6 left-6 z-10 bg-white/80 backdrop-blur-md border border-slate-200 px-4 py-2 rounded-xl shadow-sm pointer-events-none">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Campaign System</p>
+                        <p className="text-sm font-bold text-slate-800">Organizational Hierarchy</p>
+                    </div>
+                </>
+            )}
         </div>
     );
 };

@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import {
     Search,
-    Filter,
     MapPin,
     Calendar,
     User,
+    Users,
     X,
     Maximize2,
     Loader2
@@ -15,11 +15,12 @@ import { Pagination } from '../components/Pagination';
 interface Event {
     id: string;
     user_id: string;
-    type: string;
+    event_name: string;
+    people_count: number;
     latitude: number;
     longitude: number;
-    image_url: string;
-    description?: string;
+    images: string[];
+    address?: string;
     created_at: string;
     worker_name: string;
     worker_phone: string;
@@ -33,7 +34,6 @@ export const EventsPage = () => {
 
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(24); // Multiple of 3 for grid
-    const [typeFilter, setTypeFilter] = useState('all');
 
     const fetchEvents = async () => {
         try {
@@ -50,10 +50,9 @@ export const EventsPage = () => {
 
     const filteredEvents = events.filter(e => {
         const matchesSearch = e.worker_name.toLowerCase().includes(search.toLowerCase()) ||
-            (e.description && e.description.toLowerCase().includes(search.toLowerCase())) ||
-            e.type.toLowerCase().includes(search.toLowerCase());
-        const matchesType = typeFilter === 'all' || e.type === typeFilter;
-        return matchesSearch && matchesType;
+            (e.event_name && e.event_name.toLowerCase().includes(search.toLowerCase())) ||
+            (e.address && e.address.toLowerCase().includes(search.toLowerCase()));
+        return matchesSearch;
     });
 
     const totalItems = filteredEvents.length;
@@ -65,9 +64,7 @@ export const EventsPage = () => {
     // Reset pagination when filters change
     useEffect(() => {
         setCurrentPage(1);
-    }, [search, typeFilter]);
-
-    const uniqueTypes = Array.from(new Set(events.map(e => e.type))).sort();
+    }, [search]);
 
     return (
         <div className="h-full flex flex-col space-y-6">
@@ -90,19 +87,6 @@ export const EventsPage = () => {
                             onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Filter className="w-5 h-5 text-slate-400" />
-                        <select
-                            className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-                            value={typeFilter}
-                            onChange={(e) => setTypeFilter(e.target.value)}
-                        >
-                            <option value="all">All Event Types</option>
-                            {uniqueTypes.map(t => (
-                                <option key={t} value={t}>{t}</option>
-                            ))}
-                        </select>
-                    </div>
                 </div>
             </div>
 
@@ -121,48 +105,54 @@ export const EventsPage = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {paginatedEvents.map((event) => (
                             <div key={event.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md hover:border-slate-300 transition-all group">
-                                <div className="relative h-48 bg-slate-100 overflow-hidden cursor-pointer" onClick={() => setSelectedImage(event.image_url)}>
+                                <div className="relative h-48 bg-slate-100 overflow-hidden cursor-pointer" onClick={() => setSelectedImage(event.images[0])}>
                                     <img
-                                        src={event.image_url}
-                                        alt={event.type}
+                                        src={event.images[0]}
+                                        alt={event.event_name}
                                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                     />
                                     <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                         <Maximize2 className="w-8 h-8 text-white" />
                                     </div>
-                                    <div className="absolute top-3 left-3 bg-indigo-600 text-white text-[10px] font-bold uppercase px-2 py-1 rounded-md shadow">
-                                        {event.type}
+                                    <div className="absolute top-3 left-3 bg-indigo-600 text-white text-[10px] font-bold uppercase px-2 py-1 rounded-md shadow flex items-center gap-1.5">
+                                        <Users className="w-3 h-3" />
+                                        {event.people_count} Gathered
                                     </div>
+                                    {event.images.length > 1 && (
+                                        <div className="absolute bottom-3 right-3 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded-md">
+                                            +{event.images.length - 1} more
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="p-5 space-y-4">
-                                    <div className="flex items-start justify-between gap-2">
+                                    <div className="space-y-1">
+                                        <h3 className="text-lg font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                                            {event.event_name}
+                                        </h3>
                                         <div className="flex items-center gap-2">
-                                            <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
-                                                <User className="w-4 h-4 text-indigo-600" />
+                                            <div className="w-6 h-6 bg-indigo-50 rounded-full flex items-center justify-center">
+                                                <User className="w-3.5 h-3.5 text-indigo-600" />
                                             </div>
                                             <div>
-                                                <p className="text-sm font-semibold text-slate-900">{event.worker_name}</p>
-                                                <p className="text-[10px] text-slate-400">{event.worker_phone}</p>
+                                                <p className="text-xs font-semibold text-slate-700">{event.worker_name}</p>
                                             </div>
                                         </div>
                                     </div>
 
-                                    {event.description && (
-                                        <p className="text-sm text-slate-500 line-clamp-2 italic">
-                                            "{event.description}"
-                                        </p>
+                                    {event.address && (
+                                        <div className="flex items-start gap-1.5 text-xs text-slate-500">
+                                            <MapPin className="w-3.5 h-3.5 text-slate-400 mt-0.5" />
+                                            <span className="line-clamp-2">{event.address}</span>
+                                        </div>
                                     )}
 
-                                    <div className="pt-2 flex flex-wrap gap-x-4 gap-y-2 text-[11px] text-slate-400 border-t border-slate-100">
+                                    <div className="pt-2 flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-100">
                                         <div className="flex items-center gap-1">
                                             <Calendar className="w-3.5 h-3.5" />
                                             {new Date(event.created_at).toLocaleString()}
                                         </div>
-                                        <div className="flex items-center gap-1">
-                                            <MapPin className="w-3.5 h-3.5" />
-                                            {event.latitude.toFixed(4)}, {event.longitude.toFixed(4)}
-                                        </div>
+                                        <span className="font-mono">{event.latitude.toFixed(4)}, {event.longitude.toFixed(4)}</span>
                                     </div>
                                 </div>
                             </div>
