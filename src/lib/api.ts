@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://backend.visiondata.live';
+const API_BASE_URL = 'https://ranneeti.org';
 
 const api = axios.create({
     baseURL: API_BASE_URL,

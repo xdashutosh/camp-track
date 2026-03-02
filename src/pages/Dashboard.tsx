@@ -1,4 +1,8 @@
 import { useState, useEffect } from 'react';
+import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import tamulpurGeoJsonUrl from '../assets/export.geojson';
 import {
     ResponsiveContainer,
     PieChart,
@@ -28,6 +32,90 @@ import { Loader2 } from 'lucide-react';
 
 const COLORS = ['#6366f1', '#e2e8f0']; // indigo-500, slate-200
 const BAR_COLORS = ['#818cf8', '#6366f1', '#4f46e5', '#4338ca', '#3730a3'];
+
+const FitBounds = ({ geoJsonData }: { geoJsonData: any }) => {
+    const map = useMap();
+    useEffect(() => {
+        if (geoJsonData) {
+            const geoJsonLayer = L.geoJSON(geoJsonData);
+            const bounds = geoJsonLayer.getBounds();
+            if (bounds.isValid()) {
+                map.fitBounds(bounds, { padding: [30, 30] });
+            }
+        }
+    }, [geoJsonData, map]);
+    return null;
+};
+
+const ConstituencyMapInner = ({ geoJsonData }: { geoJsonData: any }) => {
+    const geoJsonStyle = {
+        color: '#4f46e5',
+        weight: 3,
+        opacity: 0.8,
+        fillColor: '#6366f1',
+        fillOpacity: 0.15,
+        dashArray: ''
+    };
+
+    const onEachFeature = (feature: any, layer: any) => {
+        if (feature.properties && feature.properties.name) {
+            layer.bindPopup(
+                `<div style="padding:4px 8px;">
+                    <h4 style="margin:0;font-weight:700;font-size:14px;color:#1e293b;">${feature.properties.name}</h4>
+                    <p style="margin:4px 0 0;font-size:11px;color:#64748b;">Administrative Boundary</p>
+                </div>`
+            );
+        }
+    };
+
+    return (
+        <MapContainer
+            center={[26.65, 91.65]}
+            zoom={10}
+            style={{ height: '100%', width: '100%' }}
+            scrollWheelZoom={true}
+        >
+            <TileLayer
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            />
+            <GeoJSON
+                data={geoJsonData}
+                style={geoJsonStyle}
+                onEachFeature={onEachFeature}
+            />
+            <FitBounds geoJsonData={geoJsonData} />
+        </MapContainer>
+    );
+};
+
+const ConstituencyMap = () => {
+    const [geoData, setGeoData] = useState<any>(null);
+    const [mapLoading, setMapLoading] = useState(true);
+
+    useEffect(() => {
+        fetch(tamulpurGeoJsonUrl)
+            .then(res => res.json())
+            .then(data => {
+                setGeoData(data);
+                setMapLoading(false);
+            })
+            .catch(err => {
+                console.error('Failed to load GeoJSON:', err);
+                setMapLoading(false);
+            });
+    }, []);
+
+    if (mapLoading || !geoData) {
+        return (
+            <div className="h-full flex items-center justify-center text-slate-400">
+                <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+            </div>
+        );
+    }
+
+    return <ConstituencyMapInner geoJsonData={geoData} />;
+};
 
 interface DashboardStats {
     counts: {
@@ -72,6 +160,7 @@ const StatCard = ({ title, value, icon: Icon, trend, color }: any) => (
         </div>
     </div>
 );
+
 
 export const DashboardPage = () => {
     const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -240,6 +329,22 @@ export const DashboardPage = () => {
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
+                </div>
+            </div>
+
+            {/* Constituency Map */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-900">Constituency Map</h3>
+                        <p className="text-sm text-slate-500">Tamulpur constituency boundary</p>
+                    </div>
+                    <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+                        <Map className="w-5 h-5 text-blue-600" />
+                    </div>
+                </div>
+                <div className="h-[450px] relative">
+                    <ConstituencyMap />
                 </div>
             </div>
 
