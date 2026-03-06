@@ -20,21 +20,36 @@ const getCarSvg = (rotation: number) => {
 <svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
     <g transform="rotate(${rotation} 40 40)">
         {/* Shadow */}
-        <rect x="23" y="10" width="34" height="60" rx="10" fill="gray" fill-opacity="0.2" />
-        {/* Body */}
-        <rect x="25" y="10" width="30" height="60" rx="10" fill="#4f46e5" stroke="#3730a3" stroke-width="1"/>
-        {/* Windshield highlights */}
-        <path d="M30 20 Q 40 17 50 20" fill="none" stroke="#6366f1" stroke-width="1" />
-        {/* Front window */}
-        <path d="M28 27 L52 27 L48 40 L32 40 Z" fill="#e2e8f0" fill-opacity="0.8" />
-        {/* Rear window */}
-        <path d="M30 55 L50 55 L48 65 L32 65 Z" fill="#e2e8f0" fill-opacity="0.8" />
-        {/* Headlights */}
-        <rect x="27" y="10" width="6" height="3" rx="1" fill="#fef08a" />
-        <rect x="47" y="10" width="6" height="3" rx="1" fill="#fef08a" />
-        {/* Tail lights */}
-        <rect x="27" y="67" width="6" height="3" rx="1" fill="#f87171" />
-        <rect x="47" y="67" width="6" height="3" rx="1" fill="#f87171" />
+        <rect x="22" y="11" width="36" height="58" rx="4" fill="gray" fill-opacity="0.2" />
+        
+        {/* Main Body - Scorpio is boxy */}
+        <rect x="24" y="10" width="32" height="60" rx="3" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
+        
+        {/* Bonnet/Hood Lines */}
+        <path d="M28 25 L52 25" fill="none" stroke="#cbd5e1" stroke-width="1" />
+        <path d="M30 15 L50 15" fill="none" stroke="#cbd5e1" stroke-width="0.5" />
+        
+        {/* Windshield (Black/Dark Slate for contrast) */}
+        <path d="M27 28 L53 28 L50 42 L30 42 Z" fill="#1e293b" fill-opacity="0.9" />
+        
+        {/* Roof Rails (Typical of Scorpio) */}
+        <rect x="23" y="30" width="2" height="30" rx="1" fill="#475569" />
+        <rect x="55" y="30" width="2" height="30" rx="1" fill="#475569" />
+        
+        {/* Rear Window */}
+        <path d="M28 58 L52 58 L51 66 L29 66 Z" fill="#1e293b" fill-opacity="0.9" />
+        
+        {/* Front Headlights (Bright Yellow) */}
+        <rect x="25" y="10" width="8" height="3" rx="1" fill="#fef08a" />
+        <rect x="47" y="10" width="8" height="3" rx="1" fill="#fef08a" />
+        
+        {/* Tail lights (Bright Red) */}
+        <rect x="25" y="68" width="8" height="2" rx="0.5" fill="#ef4444" />
+        <rect x="47" y="68" width="8" height="2" rx="0.5" fill="#ef4444" />
+        
+        {/* Footsteps/Side cladding details */}
+        <rect x="23" y="35" width="1" height="20" fill="#cbd5e1" />
+        <rect x="56" y="35" width="1" height="20" fill="#cbd5e1" />
     </g>
 </svg>`;
     return `data:image/svg+xml;base64,${window.btoa(svg)}`;
