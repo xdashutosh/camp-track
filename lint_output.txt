@@ -1,0 +1,23 @@
+
+/Users/aaa/Desktop/abhastra/campaign-tracker/admin-panel/src/pages/Tracking.tsx
+  123:13  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/aaa/Desktop/abhastra/campaign-tracker/admin-panel/src/pages/Tracking.tsx:123:13
+  121 |         if (!hasLoaded.current) {
+  122 |             hasLoaded.current = true;
+> 123 |             setLoadingName(true);
+      |             ^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  124 |             reverseGeocode(stop.latitude, stop.longitude)
+  125 |                 .then(setPlaceName)
+  126 |                 .finally(() => setLoadingName(false));  react-hooks/set-state-in-effect
+  254:8   warning  React Hook useEffect has a missing dependency: 'fetchTrailAndStops'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           react-hooks/exhaustive-deps
+  277:8   warning  React Hook useEffect has a missing dependency: 'flyTarget'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    react-hooks/exhaustive-deps
+
+✖ 3 problems (1 error, 2 warnings)
+

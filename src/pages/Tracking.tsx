@@ -1,21 +1,57 @@
-import { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker, useMap, LayersControl } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { GoogleMap, useJsApiLoader, Marker, Polyline, Circle, InfoWindow } from '@react-google-maps/api';
 import api from '../lib/api';
 import { Users, Loader2, Map as MapIcon, RotateCcw, Clock, MapPin, Navigation, Calendar, Filter, ChevronDown, ChevronUp, X } from 'lucide-react';
 
-// Fix Leaflet marker icons
-import iconImg from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+const GOOGLE_MAPS_API_KEY = "AIzaSyCSFX5Min2gS2bbqQjSeGWFqE97btxKERg";
 
-const DefaultIcon = L.icon({
-    iconUrl: iconImg,
-    shadowUrl: iconShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41]
-});
-L.Marker.prototype.options.icon = DefaultIcon;
+const containerStyle = {
+    width: '100%',
+    height: '100%'
+};
+
+const defaultCenter = {
+    lat: 20.5937,
+    lng: 78.9629
+};
+
+const getCarSvg = (rotation: number) => {
+    const svg = `
+<svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+    <g transform="rotate(${rotation} 40 40)">
+        {/* Shadow */}
+        <rect x="23" y="10" width="34" height="60" rx="10" fill="gray" fill-opacity="0.2" />
+        {/* Body */}
+        <rect x="25" y="10" width="30" height="60" rx="10" fill="#4f46e5" stroke="#3730a3" stroke-width="1"/>
+        {/* Windshield highlights */}
+        <path d="M30 20 Q 40 17 50 20" fill="none" stroke="#6366f1" stroke-width="1" />
+        {/* Front window */}
+        <path d="M28 27 L52 27 L48 40 L32 40 Z" fill="#e2e8f0" fill-opacity="0.8" />
+        {/* Rear window */}
+        <path d="M30 55 L50 55 L48 65 L32 65 Z" fill="#e2e8f0" fill-opacity="0.8" />
+        {/* Headlights */}
+        <rect x="27" y="10" width="6" height="3" rx="1" fill="#fef08a" />
+        <rect x="47" y="10" width="6" height="3" rx="1" fill="#fef08a" />
+        {/* Tail lights */}
+        <rect x="27" y="67" width="6" height="3" rx="1" fill="#f87171" />
+        <rect x="47" y="67" width="6" height="3" rx="1" fill="#f87171" />
+    </g>
+</svg>`;
+    return `data:image/svg+xml;base64,${window.btoa(svg)}`;
+};
+
+const getBearing = (start: { lat: number; lng: number }, end: { lat: number; lng: number }) => {
+    const startLat = (start.lat * Math.PI) / 180;
+    const startLng = (start.lng * Math.PI) / 180;
+    const endLat = (end.lat * Math.PI) / 180;
+    const endLng = (end.lng * Math.PI) / 180;
+
+    const y = Math.sin(endLng - startLng) * Math.cos(endLat);
+    const x = Math.cos(startLat) * Math.sin(endLat) -
+        Math.sin(startLat) * Math.cos(endLat) * Math.cos(endLng - startLng);
+    const bearing = (Math.atan2(y, x) * 180) / Math.PI;
+    return (bearing + 360) % 360;
+};
 
 interface Worker {
     id: string;
@@ -41,13 +77,7 @@ interface Stop {
     duration_minutes: number;
 }
 
-const RecenterMap = ({ lat, lng }: { lat: number; lng: number }) => {
-    const map = useMap();
-    useEffect(() => {
-        if (lat && lng) map.setView([lat, lng], 15);
-    }, [lat, lng, map]);
-    return null;
-};
+// No longer need RecenterMap as a component, we'll use map.panTo
 
 const formatDuration = (mins: number) => {
     if (mins < 60) return `${Math.round(mins)} min`;
@@ -100,7 +130,7 @@ const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
     }
 };
 
-// ---- StopPopup: lazily geocodes when the popup opens ----
+// ---- StopPopup: geocodes when the popup opens ----
 const StopPopupContent = ({ stop }: { stop: Stop }) => {
     const [placeName, setPlaceName] = useState<string>('Loading location...');
 
@@ -109,7 +139,7 @@ const StopPopupContent = ({ stop }: { stop: Stop }) => {
     }, [stop.latitude, stop.longitude]);
 
     return (
-        <div className="p-1.5 text-xs min-w-[180px]">
+        <div className="p-1 text-xs">
             <p className="font-bold text-slate-900 text-sm mb-1">🛑 Stop: {formatDuration(stop.duration_minutes)}</p>
             <p className="text-slate-700 font-medium">{placeName}</p>
             <p className="text-slate-400 mt-1">{formatTime(stop.start_at)} — {formatTime(stop.end_at)}</p>
@@ -121,14 +151,13 @@ const StopPopupContent = ({ stop }: { stop: Stop }) => {
 // ---- StopTimelineItem: geocodes and shows place name in sidebar ----
 const StopTimelineItem = ({ stop, onLocate }: { stop: Stop; onLocate: (lat: number, lng: number) => void }) => {
     const [placeName, setPlaceName] = useState<string | null>(null);
-    const [loadingName, setLoadingName] = useState(false);
+    const [loadingName, setLoadingName] = useState(true);
     const hasLoaded = useRef(false);
 
     useEffect(() => {
         // Auto-load the first few, then lazy-load on scroll/visibility
         if (!hasLoaded.current) {
             hasLoaded.current = true;
-            setLoadingName(true);
             reverseGeocode(stop.latitude, stop.longitude)
                 .then(setPlaceName)
                 .finally(() => setLoadingName(false));
@@ -177,30 +206,39 @@ const StopTimelineItem = ({ stop, onLocate }: { stop: Stop; onLocate: (lat: numb
 };
 
 // ---- FlyTo: component that flies the map to a given point ----
-const FlyTo = ({ lat, lng }: { lat: number; lng: number }) => {
-    const map = useMap();
-    useEffect(() => {
-        if (lat && lng) map.flyTo([lat, lng], 17, { duration: 1 });
-    }, [lat, lng, map]);
-    return null;
-};
+// No longer need FlyTo as a component
 
 export const TrackingPage = () => {
     const [workers, setWorkers] = useState<Worker[]>([]);
     const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null);
-    const [trail, setTrail] = useState<[number, number][]>([]);
+    const [trail, setTrail] = useState<{ lat: number, lng: number }[]>([]);
     const [stops, setStops] = useState<Stop[]>([]);
     const [loading, setLoading] = useState(true);
     const [trailLoading, setTrailLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<'workers' | 'stops'>('workers');
     const [flyTarget, setFlyTarget] = useState<{ lat: number; lng: number } | null>(null);
+    const [selectedStop, setSelectedStop] = useState<Stop | null>(null);
+    const [map, setMap] = useState<google.maps.Map | null>(null);
+
+    const { isLoaded } = useJsApiLoader({
+        id: 'google-map-script',
+        googleMapsApiKey: GOOGLE_MAPS_API_KEY
+    });
 
     const [selectedRange, setSelectedRange] = useState<string>('24h');
     const [customFrom, setCustomFrom] = useState<string>('');
     const [customTo, setCustomTo] = useState<string>('');
     const [isCustom, setIsCustom] = useState(false);
 
-    const fetchWorkers = async () => {
+    const carIconUrl = useMemo(() => {
+        if (trail.length < 2) return getCarSvg(0);
+        const secondLast = trail[trail.length - 2];
+        const last = trail[trail.length - 1];
+        const rotation = getBearing(secondLast, last);
+        return getCarSvg(rotation);
+    }, [trail]);
+
+    const fetchWorkers = useCallback(async () => {
         try {
             const response = await api.get('/admin/workers');
             setWorkers(response.data);
@@ -209,9 +247,9 @@ export const TrackingPage = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    const fetchTrailAndStops = async (workerId: string) => {
+    const fetchTrailAndStops = useCallback(async (workerId: string) => {
         setTrailLoading(true);
         try {
             let trailUrl = `/admin/trails/${workerId}/preset?range=${selectedRange}&simplify=true`;
@@ -229,7 +267,7 @@ export const TrackingPage = () => {
                 api.get(stopsUrl)
             ]);
 
-            const points = trailRes.data.trail.map((p: TrailPoint) => [p.latitude, p.longitude] as [number, number]);
+            const points = trailRes.data.trail.map((p: TrailPoint) => ({ lat: p.latitude, lng: p.longitude }));
             setTrail(points);
             setStops(stopsRes.data.stops || []);
         } catch (error) {
@@ -237,13 +275,13 @@ export const TrackingPage = () => {
         } finally {
             setTrailLoading(false);
         }
-    };
+    }, [selectedRange, isCustom, customFrom, customTo]);
 
     useEffect(() => {
         fetchWorkers();
         const interval = setInterval(fetchWorkers, 30000);
         return () => clearInterval(interval);
-    }, []);
+    }, [fetchWorkers]);
 
     const selectedWorker = workers.find(w => w.id === selectedWorkerId);
 
@@ -258,11 +296,30 @@ export const TrackingPage = () => {
         if (selectedWorkerId) {
             fetchTrailAndStops(selectedWorkerId);
         }
-    }, [selectedRange, isCustom, customFrom, customTo, selectedWorkerId]);
+    }, [selectedRange, isCustom, customFrom, customTo, selectedWorkerId, fetchTrailAndStops]);
 
     const handleLocateStop = (lat: number, lng: number) => {
         setFlyTarget({ lat, lng });
+        if (map) {
+            map.panTo({ lat, lng });
+            map.setZoom(17);
+        }
     };
+
+    const onLoad = (map: google.maps.Map) => {
+        setMap(map);
+    };
+
+    const onUnmount = () => {
+        setMap(null);
+    };
+
+    useEffect(() => {
+        if (selectedWorker?.last_lat && selectedWorker?.last_lng && map && !flyTarget) {
+            map.panTo({ lat: selectedWorker.last_lat, lng: selectedWorker.last_lng });
+            map.setZoom(15);
+        }
+    }, [selectedWorker, map, flyTarget]);
 
     const presets = ['1h', '3h', '6h', '12h', '24h', '1d', '2d', '3d', '7d', '14d', '30d'];
 
@@ -471,83 +528,74 @@ export const TrackingPage = () => {
 
                 {/* Map Area */}
                 <div className="flex-1 bg-white border border-slate-200 rounded-2xl overflow-hidden relative shadow-sm">
-                    <MapContainer
-                        center={[20.5937, 78.9629]}
-                        zoom={5}
-                        style={{ height: '100%', width: '100%' }}
-                    >
-                        <LayersControl position="topright">
-                            <LayersControl.BaseLayer checked name="Street View">
-                                <TileLayer
-                                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                    {isLoaded ? (
+                        <GoogleMap
+                            mapContainerStyle={containerStyle}
+                            center={defaultCenter}
+                            zoom={5}
+                            onLoad={onLoad}
+                            onUnmount={onUnmount}
+                            options={{
+                                mapTypeControl: true,
+                                streetViewControl: true,
+                                fullscreenControl: true,
+                            }}
+                        >
+                            {/* Only show the selected worker's marker */}
+                            {selectedWorker?.last_lat && selectedWorker?.last_lng && (
+                                <Marker
+                                    position={{ lat: selectedWorker.last_lat, lng: selectedWorker.last_lng }}
+                                    title={selectedWorker.name}
+                                    icon={{
+                                        url: carIconUrl,
+                                        anchor: isLoaded ? new google.maps.Point(40, 40) : undefined,
+                                    }}
                                 />
-                            </LayersControl.BaseLayer>
-                            <LayersControl.BaseLayer name="Satellite">
-                                <TileLayer
-                                    url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                                    attribution='&copy; Esri, Maxar, Earthstar'
+                            )}
+
+                            {/* Trail polyline */}
+                            {trail.length > 0 && (
+                                <Polyline
+                                    path={trail}
+                                    options={{
+                                        strokeColor: "#4f46e5",
+                                        strokeOpacity: 0.7,
+                                        strokeWeight: 4,
+                                    }}
                                 />
-                            </LayersControl.BaseLayer>
-                            <LayersControl.BaseLayer name="Terrain">
-                                <TileLayer
-                                    url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"
-                                    attribution='&copy; <a href="https://opentopomap.org">OpenTopoMap</a>'
+                            )}
+
+                            {/* Stop markers on map */}
+                            {stops.map((stop) => (
+                                <Circle
+                                    key={stop.id}
+                                    center={{ lat: stop.latitude, lng: stop.longitude }}
+                                    radius={stop.duration_minutes >= 30 ? 60 : stop.duration_minutes >= 10 ? 40 : 25}
+                                    onClick={() => setSelectedStop(stop)}
+                                    options={{
+                                        fillColor: stop.duration_minutes >= 30 ? '#991b1b' : stop.duration_minutes >= 10 ? '#b91c1c' : '#dc2626',
+                                        fillOpacity: 0.9,
+                                        strokeColor: "#7f1d1d",
+                                        strokeWeight: 2,
+                                    }}
                                 />
-                            </LayersControl.BaseLayer>
-                        </LayersControl>
+                            ))}
 
-                        {/* Only show the selected worker's marker */}
-                        {selectedWorker?.last_lat && selectedWorker?.last_lng && (
-                            <Marker position={[selectedWorker.last_lat, selectedWorker.last_lng]}>
-                                <Popup>
-                                    <div className="p-1">
-                                        <p className="font-bold text-slate-900">{selectedWorker.name}</p>
-                                        <p className="text-xs text-slate-600">{selectedWorker.phone}</p>
-                                        <p className="text-[10px] text-slate-400 mt-1">
-                                            Last seen: {selectedWorker.last_seen ? new Date(selectedWorker.last_seen).toLocaleString() : 'N/A'}
-                                        </p>
-                                    </div>
-                                </Popup>
-                            </Marker>
-                        )}
-
-                        {/* Trail polyline */}
-                        {trail.length > 0 && (
-                            <Polyline positions={trail} color="#4f46e5" weight={3} opacity={0.7} />
-                        )}
-
-                        {/* Stop markers on map with reverse-geocoded popups */}
-                        {stops.map((stop) => (
-                            <CircleMarker
-                                key={stop.id}
-                                center={[stop.latitude, stop.longitude]}
-                                radius={stop.duration_minutes >= 30 ? 10 : stop.duration_minutes >= 10 ? 7 : 5}
-                                fillColor={
-                                    stop.duration_minutes >= 30 ? '#991b1b'
-                                        : stop.duration_minutes >= 10 ? '#b91c1c'
-                                            : '#dc2626'
-                                }
-                                fillOpacity={0.9}
-                                color="#7f1d1d"
-                                weight={2}
-                            >
-                                <Popup>
-                                    <StopPopupContent stop={stop} />
-                                </Popup>
-                            </CircleMarker>
-                        ))}
-
-                        {/* Recenter to selected worker */}
-                        {selectedWorker?.last_lat && selectedWorker?.last_lng && !flyTarget && (
-                            <RecenterMap lat={selectedWorker.last_lat} lng={selectedWorker.last_lng} />
-                        )}
-
-                        {/* Fly to a specific stop when clicked in sidebar */}
-                        {flyTarget && (
-                            <FlyTo lat={flyTarget.lat} lng={flyTarget.lng} />
-                        )}
-                    </MapContainer>
+                            {selectedStop && (
+                                <InfoWindow
+                                    position={{ lat: selectedStop.latitude, lng: selectedStop.longitude }}
+                                    onCloseClick={() => setSelectedStop(null)}
+                                >
+                                    <StopPopupContent stop={selectedStop} />
+                                </InfoWindow>
+                            )}
+                        </GoogleMap>
+                    ) : (
+                        <div className="flex items-center justify-center h-full text-slate-400">
+                            <Loader2 className="w-8 h-8 animate-spin mr-2" />
+                            Loading Map...
+                        </div>
+                    )}
 
                     {!selectedWorkerId && (
                         <div className="absolute inset-0 bg-white/70 backdrop-blur-[2px] z-[1000] flex flex-col items-center justify-center text-slate-600 p-6 text-center">
