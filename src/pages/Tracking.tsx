@@ -94,10 +94,16 @@ interface Stop {
 
 // No longer need RecenterMap as a component, we'll use map.panTo
 
-const formatDuration = (mins: number) => {
-    if (mins < 60) return `${Math.round(mins)} min`;
-    const h = Math.floor(mins / 60);
-    const m = Math.round(mins % 60);
+const formatDuration = (mins: number | null, startAt?: string) => {
+    let finalMins = mins;
+    if (finalMins === null && startAt) {
+        finalMins = (Date.now() - new Date(startAt).getTime()) / 60000;
+    }
+    if (finalMins === null) return '0 min';
+
+    if (finalMins < 60) return `${Math.round(finalMins)} min`;
+    const h = Math.floor(finalMins / 60);
+    const m = Math.round(finalMins % 60);
     return m > 0 ? `${h}h ${m}m` : `${h}h`;
 };
 
@@ -118,10 +124,7 @@ const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
             { headers: { 'Accept-Language': 'en' } }
         );
         const data = await res.json();
-        console.log('🗺️ Nominatim response:', data);
-        console.log('📍 Address object:', data.address);
         const addr = data.address;
-        // Build a detailed, human-readable name with village/town/district/state
         const parts: string[] = [];
         if (addr.amenity || addr.building || addr.shop || addr.office) {
             parts.push(addr.amenity || addr.building || addr.shop || addr.office);
@@ -135,7 +138,6 @@ const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
         if (addr.county || addr.state_district) parts.push(addr.county || addr.state_district);
         if (addr.state) parts.push(addr.state);
 
-        // Deduplicate in case village == town or city == county
         const unique = [...new Set(parts)];
         const name = unique.length > 0 ? unique.join(', ') : (data.display_name?.split(',').slice(0, 4).join(',') || 'Unknown');
         geocodeCache.set(key, name);
@@ -155,9 +157,12 @@ const StopPopupContent = ({ stop }: { stop: Stop }) => {
 
     return (
         <div className="p-1 text-xs">
-            <p className="font-bold text-slate-900 text-sm mb-1">🛑 Stop: {formatDuration(stop.duration_minutes)}</p>
+            <p className="font-bold text-slate-900 text-sm mb-1">
+                🛑 Stop: {formatDuration(stop.duration_minutes, stop.start_at)}
+                {!stop.end_at && <span className="text-indigo-500 ml-1 text-[10px] italic">(Ongoing)</span>}
+            </p>
             <p className="text-slate-700 font-medium">{placeName}</p>
-            <p className="text-slate-400 mt-1">{formatTime(stop.start_at)} — {formatTime(stop.end_at)}</p>
+            <p className="text-slate-400 mt-1">{formatTime(stop.start_at)} — {stop.end_at ? formatTime(stop.end_at) : 'Present'}</p>
             <p className="text-slate-400 mt-0.5">{stop.latitude.toFixed(5)}, {stop.longitude.toFixed(5)}</p>
         </div>
     );
@@ -170,7 +175,6 @@ const StopTimelineItem = ({ stop, onLocate }: { stop: Stop; onLocate: (lat: numb
     const hasLoaded = useRef(false);
 
     useEffect(() => {
-        // Auto-load the first few, then lazy-load on scroll/visibility
         if (!hasLoaded.current) {
             hasLoaded.current = true;
             reverseGeocode(stop.latitude, stop.longitude)
@@ -179,17 +183,20 @@ const StopTimelineItem = ({ stop, onLocate }: { stop: Stop; onLocate: (lat: numb
         }
     }, [stop.latitude, stop.longitude]);
 
+    const displayDuration = formatDuration(stop.duration_minutes, stop.start_at);
+
     return (
         <div
             className="pb-4 flex-1 min-w-0 cursor-pointer hover:bg-slate-50 rounded-lg p-2 -m-1 transition-colors"
             onClick={() => onLocate(stop.latitude, stop.longitude)}
         >
             <div className="flex items-center justify-between">
-                <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${stop.duration_minutes >= 30 ? 'bg-red-50 text-red-600'
-                    : stop.duration_minutes >= 10 ? 'bg-amber-50 text-amber-600'
-                        : 'bg-emerald-50 text-emerald-600'
+                <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${!stop.end_at ? 'bg-indigo-50 text-indigo-600 border border-indigo-100'
+                    : stop.duration_minutes && stop.duration_minutes >= 30 ? 'bg-red-50 text-red-600'
+                        : stop.duration_minutes && stop.duration_minutes >= 10 ? 'bg-amber-50 text-amber-600'
+                            : 'bg-emerald-50 text-emerald-600'
                     }`}>
-                    {formatDuration(stop.duration_minutes)}
+                    {displayDuration} {!stop.end_at && ' (Ongoing)'}
                 </span>
                 <button
                     className="text-slate-300 hover:text-indigo-500 transition-colors"
@@ -210,7 +217,7 @@ const StopTimelineItem = ({ stop, onLocate }: { stop: Stop; onLocate: (lat: numb
             </div>
 
             <p className="text-[11px] text-slate-500 mt-1">
-                {formatTime(stop.start_at)} — {formatTime(stop.end_at)}
+                {formatTime(stop.start_at)} — {stop.end_at ? formatTime(stop.end_at) : 'Present'}
             </p>
             <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
                 <MapPin className="w-3 h-3" />
