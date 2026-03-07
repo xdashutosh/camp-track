@@ -88,8 +88,8 @@ interface Stop {
     latitude: number;
     longitude: number;
     start_at: string;
-    end_at: string;
-    duration_minutes: number;
+    end_at: string | null;
+    duration_minutes: number | null;
 }
 
 // No longer need RecenterMap as a component, we'll use map.panTo
@@ -588,20 +588,23 @@ export const TrackingPage = () => {
                             )}
 
                             {/* Stop markers on map */}
-                            {stops.map((stop) => (
-                                <Circle
-                                    key={stop.id}
-                                    center={{ lat: stop.latitude, lng: stop.longitude }}
-                                    radius={stop.duration_minutes >= 30 ? 60 : stop.duration_minutes >= 10 ? 40 : 25}
-                                    onClick={() => setSelectedStop(stop)}
-                                    options={{
-                                        fillColor: stop.duration_minutes >= 30 ? '#991b1b' : stop.duration_minutes >= 10 ? '#b91c1c' : '#dc2626',
-                                        fillOpacity: 0.9,
-                                        strokeColor: "#7f1d1d",
-                                        strokeWeight: 2,
-                                    }}
-                                />
-                            ))}
+                            {stops.map((stop) => {
+                                const mins = stop.duration_minutes ?? (Date.now() - new Date(stop.start_at).getTime()) / 60000;
+                                return (
+                                    <Circle
+                                        key={stop.id}
+                                        center={{ lat: stop.latitude, lng: stop.longitude }}
+                                        radius={mins >= 30 ? 60 : mins >= 10 ? 40 : 25}
+                                        onClick={() => setSelectedStop(stop)}
+                                        options={{
+                                            fillColor: mins >= 30 ? '#991b1b' : mins >= 10 ? '#b91c1c' : '#dc2626',
+                                            fillOpacity: 0.9,
+                                            strokeColor: "#7f1d1d",
+                                            strokeWeight: 2,
+                                        }}
+                                    />
+                                );
+                            })}
 
                             {selectedStop && (
                                 <InfoWindow
