@@ -527,9 +527,9 @@ export const TrackingPage = () => {
                                             <div key={stop.id} className="relative flex gap-3">
                                                 {/* Timeline dot & line */}
                                                 <div className="flex flex-col items-center">
-                                                    <div className={`w-3 h-3 rounded-full border-2 ${stop.duration_minutes >= 30
+                                                    <div className={`w-3 h-3 rounded-full border-2 ${(stop.duration_minutes ?? 0) >= 30
                                                         ? 'bg-red-700 border-red-400'
-                                                        : stop.duration_minutes >= 10
+                                                        : (stop.duration_minutes ?? 0) >= 10
                                                             ? 'bg-amber-500 border-amber-300'
                                                             : 'bg-emerald-500 border-emerald-300'
                                                         }`} />
