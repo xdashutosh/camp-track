@@ -57,6 +57,7 @@ export const OpponentTrackerPage = () => {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [activeGallery, setActiveGallery] = useState<GalleryState | null>(null);
+    const [activeTracker, setActiveTracker] = useState<OpponentTracker | null>(null);
 
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(24);
@@ -112,14 +113,17 @@ export const OpponentTrackerPage = () => {
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (!activeGallery) return;
-            if (e.key === 'ArrowLeft') handlePrevious();
-            if (e.key === 'ArrowRight') handleNext();
-            if (e.key === 'Escape') setActiveGallery(null);
+            if (activeGallery) {
+                if (e.key === 'ArrowLeft') handlePrevious();
+                if (e.key === 'ArrowRight') handleNext();
+                if (e.key === 'Escape') setActiveGallery(null);
+            } else if (activeTracker) {
+                if (e.key === 'Escape') setActiveTracker(null);
+            }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [activeGallery, handlePrevious, handleNext]);
+    }, [activeGallery, activeTracker, handlePrevious, handleNext]);
 
     return (
         <div className="h-full flex flex-col space-y-6">
@@ -159,9 +163,9 @@ export const OpponentTrackerPage = () => {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {paginatedTrackers.map((tracker) => (
-                            <div key={tracker.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md hover:border-slate-300 transition-all group flex flex-col">
+                            <div key={tracker.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md hover:border-slate-300 transition-all group flex flex-col cursor-pointer" onClick={() => setActiveTracker(tracker)}>
                                 {tracker.images && tracker.images.length > 0 ? (
-                                    <div className="relative h-48 bg-slate-100 overflow-hidden cursor-pointer shrink-0" onClick={() => setActiveGallery({ images: tracker.images, index: 0 })}>
+                                    <div className="relative h-48 bg-slate-100 overflow-hidden shrink-0" onClick={(e) => { e.stopPropagation(); setActiveGallery({ images: tracker.images, index: 0 }); }}>
                                         <img
                                             src={tracker.images[0]}
                                             alt={tracker.opponent_name}
@@ -318,6 +322,188 @@ export const OpponentTrackerPage = () => {
                                 alt={`Preview ${activeGallery.index + 1}`}
                                 className="max-w-full max-h-full object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-200"
                             />
+                        </div>
+                    </div>
+                )}
+
+                {/* Tracker Detail Modal */}
+                {activeTracker && (
+                    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm shadow-2xl" onClick={() => setActiveTracker(null)}>
+                        <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+                            <div className="flex bg-slate-50 items-center justify-between p-6 border-b border-slate-200">
+                                <div>
+                                    <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
+                                        Intelligence Report: {activeTracker.opponent_name || 'Unnamed Opponent'}
+                                        {activeTracker.opponent_strength && (
+                                            <span className={`text-xs px-2.5 py-1 rounded-full border ${activeTracker.opponent_strength === 'Very Strong' ? 'bg-red-50 text-red-700 border-red-200' :
+                                                activeTracker.opponent_strength === 'Strong' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                                                    activeTracker.opponent_strength === 'Medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                                                        'bg-green-50 text-green-700 border-green-200'
+                                                }`}>
+                                                {activeTracker.opponent_strength}
+                                            </span>
+                                        )}
+                                    </h2>
+                                    <p className="text-sm text-slate-500 mt-2">
+                                        Reported by <span className="font-semibold">{activeTracker.worker_name}</span> ({activeTracker.worker_phone}) on {new Date(activeTracker.tracked_at).toLocaleString()}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setActiveTracker(null)}
+                                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors"
+                                >
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+                            <div className="p-6 overflow-y-auto flex-1 grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="space-y-6">
+                                    <section>
+                                        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Location & Context</h3>
+                                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                                            <div className="flex justify-between border-b border-slate-200 pb-2">
+                                                <span className="text-slate-500">Constituency</span>
+                                                <span className="font-semibold text-slate-900">{activeTracker.constituency || '-'}</span>
+                                            </div>
+                                            <div className="flex justify-between border-b border-slate-200 pb-2">
+                                                <span className="text-slate-500">Village/Town</span>
+                                                <span className="font-semibold text-slate-900">{activeTracker.village_name || '-'}</span>
+                                            </div>
+                                            <div className="flex justify-between pb-1">
+                                                <span className="text-slate-500">Booth Number</span>
+                                                <span className="font-semibold text-slate-900">{activeTracker.booth_number || '-'}</span>
+                                            </div>
+                                        </div>
+                                    </section>
+
+                                    <section>
+                                        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Opponent Details</h3>
+                                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                                            <div className="flex justify-between border-b border-slate-200 pb-2">
+                                                <span className="text-slate-500">Party</span>
+                                                <span className="font-semibold text-red-600">{activeTracker.opponent_party || '-'}</span>
+                                            </div>
+                                            <div className="flex justify-between border-b border-slate-200 pb-2">
+                                                <span className="text-slate-500">Age</span>
+                                                <span className="font-semibold text-slate-900">{activeTracker.opponent_age || '-'}</span>
+                                            </div>
+                                            <div className="flex justify-between pb-1">
+                                                <span className="text-slate-500">Local Candidate?</span>
+                                                <span className="font-semibold text-slate-900">{activeTracker.is_local_candidate ? 'Yes' : 'No'}</span>
+                                            </div>
+                                        </div>
+                                    </section>
+
+                                    <section>
+                                        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Support Estimations</h3>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="bg-green-50 p-4 rounded-xl border border-green-100">
+                                                <span className="block text-xs text-green-700 font-medium mb-1">Our Target Est.</span>
+                                                <span className="text-lg font-bold text-green-900">{activeTracker.our_support_est || '-'}</span>
+                                            </div>
+                                            <div className="bg-red-50 p-4 rounded-xl border border-red-100">
+                                                <span className="block text-xs text-red-700 font-medium mb-1">Opponent Est.</span>
+                                                <span className="text-lg font-bold text-red-900">{activeTracker.opponent_support_est || '-'}</span>
+                                            </div>
+                                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center col-span-2">
+                                                <span className="text-slate-500 text-sm">Youth Support</span>
+                                                <span className="font-semibold text-slate-900">{activeTracker.youth_support || '-'}</span>
+                                            </div>
+                                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center col-span-2">
+                                                <span className="text-slate-500 text-sm">Women Support</span>
+                                                <span className="font-semibold text-slate-900">{activeTracker.women_support || '-'}</span>
+                                            </div>
+                                        </div>
+                                    </section>
+                                </div>
+
+                                <div className="space-y-6">
+                                    <section>
+                                        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Ground Realities</h3>
+                                        <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100/50 space-y-4">
+                                            <div>
+                                                <span className="text-slate-500 text-xs font-semibold uppercase">Public Mood (State/Center)</span>
+                                                <div className={`mt-1 font-bold text-lg ${activeTracker.public_mood_govt === 'Happy' ? 'text-green-600' : activeTracker.public_mood_govt === 'Angry' ? 'text-red-600' : 'text-yellow-600'}`}>
+                                                    {activeTracker.public_mood_govt || 'Unknown'}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <span className="text-slate-500 text-xs font-semibold uppercase">Demand for Change</span>
+                                                <div className="mt-1 font-bold text-slate-900">
+                                                    {activeTracker.demand_for_change || 'Unknown'}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <span className="text-slate-500 text-xs font-semibold uppercase">Top Issues</span>
+                                                {activeTracker.top_issues && activeTracker.top_issues.length > 0 ? (
+                                                    <div className="mt-2 flex flex-wrap gap-2">
+                                                        {activeTracker.top_issues.map((issue, idx) => (
+                                                            <span key={idx} className="bg-white border border-slate-200 text-slate-700 text-sm px-3 py-1 rounded-lg">
+                                                                {issue}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                ) : <span className="font-semibold text-slate-900 mt-1 block">-</span>}
+                                            </div>
+                                            <div>
+                                                <span className="text-slate-500 text-xs font-semibold uppercase">Development Seen?</span>
+                                                <div className="mt-1 font-medium text-slate-800">
+                                                    {activeTracker.development_seen || 'No comments'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </section>
+
+                                    {(activeTracker.rally_people_count != null || activeTracker.crowd_reaction || activeTracker.opponent_supporters_seen) && (
+                                        <section>
+                                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Rally/Event Observations</h3>
+                                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                                                {activeTracker.rally_people_count != null && (
+                                                    <div className="flex justify-between border-b border-slate-200 pb-2">
+                                                        <span className="text-slate-500">People Count Eval.</span>
+                                                        <span className="font-semibold text-slate-900">{activeTracker.rally_people_count}</span>
+                                                    </div>
+                                                )}
+                                                {activeTracker.crowd_reaction && (
+                                                    <div className="flex justify-between border-b border-slate-200 pb-2">
+                                                        <span className="text-slate-500">Crowd Reaction</span>
+                                                        <span className="font-semibold text-slate-900">{activeTracker.crowd_reaction}</span>
+                                                    </div>
+                                                )}
+                                                <div className="flex justify-between pb-1">
+                                                    <span className="text-slate-500">Opponent Supporters Spotted?</span>
+                                                    <span className="font-semibold text-slate-900">{activeTracker.opponent_supporters_seen ? 'Yes' : 'No'}</span>
+                                                </div>
+                                            </div>
+                                        </section>
+                                    )}
+
+                                    {activeTracker.notes && (
+                                        <section>
+                                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Additional Notes</h3>
+                                            <div className="bg-yellow-50/50 p-4 rounded-xl border border-yellow-100 text-slate-700 text-sm whitespace-pre-wrap leading-relaxed">
+                                                {activeTracker.notes}
+                                            </div>
+                                        </section>
+                                    )}
+
+                                    {activeTracker.images && activeTracker.images.length > 0 && (
+                                        <section>
+                                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Attached Evidence</h3>
+                                            <div className="flex gap-3 overflow-x-auto pb-2">
+                                                {activeTracker.images.map((img, idx) => (
+                                                    <button
+                                                        key={idx}
+                                                        onClick={() => setActiveGallery({ images: activeTracker.images, index: idx })}
+                                                        className="shrink-0 rounded-lg overflow-hidden border border-slate-200 hover:border-indigo-500 transition-colors w-24 h-24"
+                                                    >
+                                                        <img src={img} alt={`Evidence ${idx + 1}`} className="w-full h-full object-cover" />
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </section>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
