@@ -15,11 +15,22 @@ export const useAuth = () => {
         return saved ? JSON.parse(saved) : null;
     });
     const [loading, setLoading] = useState(false);
+    const [isOtpSent, setIsOtpSent] = useState(false);
 
-    const login = async (phone: string, password: string) => {
+    const sendOtp = async (phone: string) => {
         setLoading(true);
         try {
-            const response = await api.post('/auth/login', { phone, password });
+            await api.post('/auth/send-otp', { phone });
+            setIsOtpSent(true);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const verifyOtp = async (phone: string, otp: string) => {
+        setLoading(true);
+        try {
+            const response = await api.post('/auth/verify-otp', { phone, otp });
             const { token, user: userData } = response.data;
 
             if (userData.role !== 'admin') {
@@ -35,11 +46,17 @@ export const useAuth = () => {
         }
     };
 
+    const resetOtp = () => {
+        setIsOtpSent(false);
+    };
+
     const logout = () => {
         localStorage.removeItem('admin_token');
         localStorage.removeItem('admin_user');
         setUser(null);
+        setIsOtpSent(false);
+        window.location.href = '/login';
     };
 
-    return { user, login, logout, loading, isAuthenticated: !!user };
+    return { user, sendOtp, verifyOtp, resetOtp, logout, loading, isOtpSent, isAuthenticated: !!user };
 };

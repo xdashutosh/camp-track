@@ -3,7 +3,6 @@ import api from '../lib/api';
 import {
     UserPlus,
     Search,
-    Key,
     Trash2,
     X,
     Loader2,
@@ -29,13 +28,9 @@ export const WorkersPage = () => {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
-    const [selectedWorker, setSelectedWorker] = useState<Worker | null>(null);
 
     const [newName, setNewName] = useState('');
     const [newPhone, setNewPhone] = useState('');
-    const [newPassword, setNewPassword] = useState('');
-    const [updatePassword, setUpdatePassword] = useState('');
 
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(25);
@@ -57,26 +52,16 @@ export const WorkersPage = () => {
     const handleAddWorker = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await api.post('/admin/workers', { name: newName, phone: newPhone, password: newPassword });
+            await api.post('/admin/workers', { name: newName, phone: newPhone });
             setIsAddModalOpen(false);
             fetchWorkers();
-            setNewName(''); setNewPhone(''); setNewPassword('');
+            setNewName(''); setNewPhone('');
         } catch { alert('Failed to add worker'); }
     };
 
     const handleDeleteWorker = async (id: string) => {
         if (!confirm('Are you sure you want to delete this worker?')) return;
         try { await api.delete(`/admin/workers/${id}`); fetchWorkers(); } catch { alert('Failed to delete worker'); }
-    };
-
-    const handleUpdatePassword = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!selectedWorker) return;
-        try {
-            await api.put(`/admin/workers/${selectedWorker.id}/password`, { password: updatePassword });
-            setIsPasswordModalOpen(false); setUpdatePassword('');
-            alert('Password updated successfully');
-        } catch { alert('Failed to update password'); }
     };
 
     const filteredWorkers = workers.filter(w => {
@@ -189,12 +174,6 @@ export const WorkersPage = () => {
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex items-center justify-end gap-2">
                                             <button
-                                                onClick={() => { setSelectedWorker(worker); setIsPasswordModalOpen(true); }}
-                                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                                            >
-                                                <Key className="w-4 h-4" />
-                                            </button>
-                                            <button
                                                 onClick={() => handleDeleteWorker(worker.id)}
                                                 className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                                             >
@@ -233,27 +212,12 @@ export const WorkersPage = () => {
                         <form onSubmit={handleAddWorker} className="space-y-4">
                             <input type="text" placeholder="Name" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30" value={newName} onChange={e => setNewName(e.target.value)} required />
                             <input type="text" placeholder="Phone (10 digits)" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30" value={newPhone} onChange={e => setNewPhone(e.target.value)} required pattern="\d{10}" />
-                            <input type="password" placeholder="Password" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30" value={newPassword} onChange={e => setNewPassword(e.target.value)} required minLength={6} />
                             <button type="submit" className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/25">Create Account</button>
                         </form>
                     </div>
                 </div>
             )}
 
-            {/* Password Update Modal */}
-            {isPasswordModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
-                    <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl p-8 relative shadow-2xl">
-                        <button onClick={() => setIsPasswordModalOpen(false)} className="absolute right-4 top-4 text-slate-400 hover:text-slate-600"><X /></button>
-                        <h2 className="text-xl font-bold text-slate-900 mb-2">Update Password</h2>
-                        <p className="text-sm text-slate-500 mb-6">For {selectedWorker?.name}</p>
-                        <form onSubmit={handleUpdatePassword} className="space-y-4">
-                            <input type="password" placeholder="New Password" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30" value={updatePassword} onChange={e => setUpdatePassword(e.target.value)} required minLength={6} />
-                            <button type="submit" className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/25">Update</button>
-                        </form>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

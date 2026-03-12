@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../lib/api';
 import {
     Search,
@@ -8,7 +8,9 @@ import {
     Users,
     X,
     Maximize2,
-    Loader2
+    Loader2,
+    ChevronLeft,
+    ChevronRight
 } from 'lucide-react';
 import { Pagination } from '../components/Pagination';
 
@@ -26,14 +28,19 @@ interface Event {
     worker_phone: string;
 }
 
+interface GalleryState {
+    images: string[];
+    index: number;
+}
+
 export const EventsPage = () => {
     const [events, setEvents] = useState<Event[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
-    const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [activeGallery, setActiveGallery] = useState<GalleryState | null>(null);
 
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(24); // Multiple of 3 for grid
+    const [itemsPerPage, setItemsPerPage] = useState(24);
 
     const fetchEvents = async () => {
         try {
@@ -61,10 +68,38 @@ export const EventsPage = () => {
         currentPage * itemsPerPage
     );
 
-    // Reset pagination when filters change
     useEffect(() => {
         setCurrentPage(1);
     }, [search]);
+
+    const handlePrevious = useCallback((e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        if (!activeGallery) return;
+        setActiveGallery(prev => ({
+            ...prev!,
+            index: (prev!.index - 1 + prev!.images.length) % prev!.images.length
+        }));
+    }, [activeGallery]);
+
+    const handleNext = useCallback((e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        if (!activeGallery) return;
+        setActiveGallery(prev => ({
+            ...prev!,
+            index: (prev!.index + 1) % prev!.images.length
+        }));
+    }, [activeGallery]);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (!activeGallery) return;
+            if (e.key === 'ArrowLeft') handlePrevious();
+            if (e.key === 'ArrowRight') handleNext();
+            if (e.key === 'Escape') setActiveGallery(null);
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [activeGallery, handlePrevious, handleNext]);
 
     return (
         <div className="h-full flex flex-col space-y-6">
@@ -105,7 +140,7 @@ export const EventsPage = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {paginatedEvents.map((event) => (
                             <div key={event.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md hover:border-slate-300 transition-all group">
-                                <div className="relative h-48 bg-slate-100 overflow-hidden cursor-pointer" onClick={() => setSelectedImage(event.images[0])}>
+                                <div className="relative h-48 bg-slate-100 overflow-hidden cursor-pointer" onClick={() => setActiveGallery({ images: event.images, index: 0 })}>
                                     <img
                                         src={event.images[0]}
                                         alt={event.event_name}
@@ -170,17 +205,55 @@ export const EventsPage = () => {
                     />
                 </div>
 
-                {/* Image Preview Modal */}
-                {selectedImage && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setSelectedImage(null)}>
-                        <button className="absolute top-6 right-6 text-white/60 hover:text-white">
+                {/* Image Preview Modal / Gallery */}
+                {activeGallery && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md" onClick={() => setActiveGallery(null)}>
+                        {/* Close button */}
+                        <button
+                            className="absolute top-6 right-6 p-2 text-white/60 hover:text-white hover:bg-white/10 rounded-full transition-all z-50"
+                            onClick={() => setActiveGallery(null)}
+                        >
                             <X className="w-8 h-8" />
                         </button>
-                        <img
-                            src={selectedImage}
-                            alt="Preview"
-                            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
-                        />
+
+                        {/* Navigation Buttons */}
+                        {activeGallery.images.length > 1 && (
+                            <>
+                                <button
+                                    className="absolute left-6 p-3 text-white/60 hover:text-white hover:bg-white/10 rounded-full transition-all z-50"
+                                    onClick={handlePrevious}
+                                >
+                                    <ChevronLeft className="w-10 h-10" />
+                                </button>
+                                <button
+                                    className="absolute right-6 p-3 text-white/60 hover:text-white hover:bg-white/10 rounded-full transition-all z-50"
+                                    onClick={handleNext}
+                                >
+                                    <ChevronRight className="w-10 h-10" />
+                                </button>
+
+                                <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-2">
+                                    {activeGallery.images.map((_, idx) => (
+                                        <div
+                                            key={idx}
+                                            className={`h-1.5 rounded-full transition-all ${idx === activeGallery.index ? 'w-8 bg-indigo-500' : 'w-2 bg-white/20'}`}
+                                        />
+                                    ))}
+                                </div>
+                                <div className="absolute bottom-16 left-1/2 -translate-x-1/2 text-white/60 font-medium bg-black/40 px-3 py-1 rounded-full text-xs">
+                                    {activeGallery.index + 1} / {activeGallery.images.length}
+                                </div>
+                            </>
+                        )}
+
+                        <div className="relative max-w-5xl w-full h-[85vh] flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                            <img
+                                key={activeGallery.images[activeGallery.index]}
+                                src={activeGallery.images[activeGallery.index]}
+                                alt={`Preview ${activeGallery.index + 1}`}
+                                className="max-w-full max-h-full object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-200"
+                            />
+                        </div>
                     </div>
                 )}
             </div>

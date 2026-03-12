@@ -28,6 +28,7 @@ const navItems = [
     { icon: GitGraph, label: 'Organization Chart', path: '/org-chart' },
     { icon: Camera, label: 'Events', path: '/events' },
     { icon: MapIcon, label: 'Live Tracking', path: '/tracking' },
+    { icon: Users, label: 'Opponent Tracker', path: '/opponent-tracker' },
 ];
 
 interface SidebarProps {

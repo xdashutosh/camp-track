@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LoginPage } from './pages/Login';
 import { WorkersPage } from './pages/Workers';
 import { EventsPage } from './pages/Events';
+import { OpponentTrackerPage } from './pages/OpponentTracker';
 import { TrackingPage } from './pages/Tracking';
 import { ProfilePage } from './pages/Profile';
 import { ZonesPage } from './pages/Zones';
@@ -24,6 +25,7 @@ function App() {
             <Route path="/" element={<DashboardPage />} />
             <Route path="/workers" element={<WorkersPage />} />
             <Route path="/events" element={<EventsPage />} />
+            <Route path="/opponent-tracker" element={<OpponentTrackerPage />} />
             <Route path="/tracking" element={<TrackingPage />} />
             <Route path="/zones" element={<ZonesPage />} />
             <Route path="/zone-mandals" element={<ZoneMandalsPage />} />
