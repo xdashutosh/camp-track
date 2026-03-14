@@ -11,6 +11,10 @@ import { BoothsPage } from './pages/Booths';
 import { OrgChartPage } from './pages/OrgChart';
 import { HeatMapPage } from './pages/HeatMap';
 import { DashboardPage } from './pages/Dashboard';
+import { MembersPage } from './pages/Members';
+import { SurveysPage } from './pages/Surveys';
+import { AddSurveyPage } from './pages/AddSurvey';
+import { ViewSurveyPage } from './pages/ViewSurvey';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { DashboardLayout } from './components/DashboardLayout';
 
@@ -32,6 +36,10 @@ function App() {
             <Route path="/booths" element={<BoothsPage />} />
             <Route path="/org-chart" element={<OrgChartPage />} />
             <Route path="/heat-map" element={<HeatMapPage />} />
+            <Route path="/members" element={<MembersPage />} />
+            <Route path="/surveys" element={<SurveysPage />} />
+            <Route path="/surveys/add" element={<AddSurveyPage />} />
+            <Route path="/surveys/:id" element={<ViewSurveyPage />} />
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
         </Route>

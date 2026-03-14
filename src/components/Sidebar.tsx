@@ -9,7 +9,8 @@ import {
     Layers,
     Globe,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    ClipboardList
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -28,7 +29,9 @@ const navItems = [
     { icon: GitGraph, label: 'Organization Chart', path: '/org-chart' },
     { icon: Camera, label: 'Events', path: '/events' },
     { icon: MapIcon, label: 'Live Tracking', path: '/tracking' },
+    { icon: ClipboardList, label: 'Surveys', path: '/surveys' },
     { icon: Users, label: 'Opponent Tracker', path: '/opponent-tracker' },
+    { icon: Users, label: 'Members', path: '/members' },
 ];
 
 interface SidebarProps {
