@@ -8,9 +8,17 @@ import {
     Loader2,
     Filter,
     CheckCircle2,
-    XCircle
+    XCircle,
+    Pencil,
+    Camera,
+    Upload
 } from 'lucide-react';
 import { Pagination } from '../components/Pagination';
+
+interface Assignment {
+    role: string;
+    name: string;
+}
 
 interface Worker {
     id: string;
@@ -21,6 +29,7 @@ interface Worker {
     last_lng?: number;
     last_seen?: string;
     is_assigned?: boolean;
+    assigned_to?: Assignment[];
 }
 
 export const WorkersPage = () => {
@@ -31,6 +40,12 @@ export const WorkersPage = () => {
 
     const [newName, setNewName] = useState('');
     const [newPhone, setNewPhone] = useState('');
+
+    const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
+    const [editName, setEditName] = useState('');
+    const [editPhone, setEditPhone] = useState('');
+    const [editImageUrl, setEditImageUrl] = useState('');
+    const [uploading, setUploading] = useState(false);
 
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(25);
@@ -62,6 +77,49 @@ export const WorkersPage = () => {
     const handleDeleteWorker = async (id: string) => {
         if (!confirm('Are you sure you want to delete this worker?')) return;
         try { await api.delete(`/admin/workers/${id}`); fetchWorkers(); } catch { alert('Failed to delete worker'); }
+    };
+
+    const handleEditClick = (worker: Worker) => {
+        setEditingWorker(worker);
+        setEditName(worker.name);
+        setEditPhone(worker.phone);
+        setEditImageUrl(worker.image_url || '');
+    };
+
+    const handleUpdateWorker = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingWorker) return;
+        try {
+            await api.put(`/admin/workers/${editingWorker.id}`, {
+                name: editName,
+                phone: editPhone,
+                image_url: editImageUrl
+            });
+            setEditingWorker(null);
+            fetchWorkers();
+        } catch (error: any) {
+            alert(error.response?.data?.error || 'Failed to update worker');
+        }
+    };
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        setUploading(true);
+        try {
+            const res = await api.post('/api/v1/upload', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            setEditImageUrl(res.data.data.data.fileUrl);
+        } catch {
+            alert('Failed to upload image');
+        } finally {
+            setUploading(false);
+        }
     };
 
     const filteredWorkers = workers.filter(w => {
@@ -148,9 +206,17 @@ export const WorkersPage = () => {
                                 <tr key={worker.id} className="hover:bg-slate-50 transition-colors group">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center font-bold text-indigo-600">
-                                                {worker.name.charAt(0)}
-                                            </div>
+                                            {worker.image_url ? (
+                                                <img 
+                                                    src={worker.image_url} 
+                                                    alt={worker.name} 
+                                                    className="w-10 h-10 rounded-full object-cover border border-slate-200"
+                                                />
+                                            ) : (
+                                                <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center font-bold text-indigo-600">
+                                                    {worker.name.charAt(0)}
+                                                </div>
+                                            )}
                                             <div>
                                                 <p className="text-sm font-semibold text-slate-900">{worker.name}</p>
                                             </div>
@@ -158,10 +224,14 @@ export const WorkersPage = () => {
                                     </td>
                                     <td className="px-6 py-4 text-sm text-slate-600">{worker.phone}</td>
                                     <td className="px-6 py-4">
-                                        {worker.is_assigned ? (
-                                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-600 rounded-md text-[10px] font-bold uppercase">
-                                                <CheckCircle2 className="w-3 h-3" /> Assigned
-                                            </span>
+                                        {worker.is_assigned && worker.assigned_to && worker.assigned_to.length > 0 ? (
+                                            <div className="space-y-1">
+                                                {worker.assigned_to.map((a, idx) => (
+                                                    <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-600 rounded-md text-[10px] font-bold mr-1">
+                                                        <CheckCircle2 className="w-3 h-3" /> {a.role}: {a.name}
+                                                    </span>
+                                                ))}
+                                            </div>
                                         ) : (
                                             <span className="inline-flex items-center gap-1 px-2 py-1 bg-slate-50 text-slate-400 rounded-md text-[10px] font-bold uppercase">
                                                 <XCircle className="w-3 h-3" /> Unassigned
@@ -174,8 +244,16 @@ export const WorkersPage = () => {
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex items-center justify-end gap-2">
                                             <button
+                                                onClick={() => handleEditClick(worker)}
+                                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                title="Edit Worker"
+                                            >
+                                                <Pencil className="w-4 h-4" />
+                                            </button>
+                                            <button
                                                 onClick={() => handleDeleteWorker(worker.id)}
                                                 className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                title="Delete Worker"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
@@ -202,6 +280,50 @@ export const WorkersPage = () => {
                     onItemsPerPageChange={setItemsPerPage}
                 />
             </div>
+
+            {/* Edit Worker Modal */}
+            {editingWorker && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+                    <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl p-8 relative shadow-2xl">
+                        <button onClick={() => setEditingWorker(null)} className="absolute right-4 top-4 text-slate-400 hover:text-slate-600"><X /></button>
+                        <h2 className="text-xl font-bold text-slate-900 mb-6">Edit Worker</h2>
+                        
+                        <div className="flex flex-col items-center mb-6">
+                            <div className="relative group">
+                                {editImageUrl ? (
+                                    <img src={editImageUrl} alt="Preview" className="w-24 h-24 rounded-full object-cover border-4 border-slate-50" />
+                                ) : (
+                                    <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 border-4 border-slate-50">
+                                        <Camera className="w-10 h-10" />
+                                    </div>
+                                )}
+                                <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+                                    <Upload className="w-6 h-6" />
+                                    <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+                                </label>
+                                {uploading && (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-white/60 rounded-full">
+                                        <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+                                    </div>
+                                )}
+                            </div>
+                            <p className="text-xs text-slate-400 mt-2 font-medium">Click to change profile picture</p>
+                        </div>
+
+                        <form onSubmit={handleUpdateWorker} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 uppercase mb-1 ml-1">Full Name</label>
+                                <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/30" value={editName} onChange={e => setEditName(e.target.value)} required />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 uppercase mb-1 ml-1">Phone Number</label>
+                                <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/30" value={editPhone} onChange={e => setEditPhone(e.target.value)} required pattern="\d{10}" />
+                            </div>
+                            <button type="submit" className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/25 mt-2">Save Changes</button>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             {/* Add Worker Modal */}
             {isAddModalOpen && (

@@ -15,6 +15,7 @@ import { MembersPage } from './pages/Members';
 import { SurveysPage } from './pages/Surveys';
 import { AddSurveyPage } from './pages/AddSurvey';
 import { ViewSurveyPage } from './pages/ViewSurvey';
+import { PostersPage } from './pages/Posters';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { DashboardLayout } from './components/DashboardLayout';
 
@@ -40,6 +41,7 @@ function App() {
             <Route path="/surveys" element={<SurveysPage />} />
             <Route path="/surveys/add" element={<AddSurveyPage />} />
             <Route path="/surveys/:id" element={<ViewSurveyPage />} />
+            <Route path="/posters" element={<PostersPage />} />
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
         </Route>

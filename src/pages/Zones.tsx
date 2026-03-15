@@ -13,11 +13,21 @@ import {
 import { ASSAM_CONSTITUENCIES } from '../lib/constants';
 import { Pagination } from '../components/Pagination';
 
+interface Worker {
+    id: string;
+    name: string;
+    phone: string;
+    is_assigned?: boolean;
+}
+
 interface Zone {
     id: string;
     constituency_name: string;
     zone_name: string;
     zone_color: string;
+    president_id?: string;
+    president_name?: string;
+    president_phone?: string;
     created_at: string;
 }
 
@@ -35,11 +45,19 @@ export const ZonesPage = () => {
     const [selectedConstituency, setSelectedConstituency] = useState('');
     const [zoneName, setZoneName] = useState('');
     const [selectedColor, setSelectedColor] = useState('#6366f1'); // Default indigo
+    const [workers, setWorkers] = useState<Worker[]>([]);
+    const [selectedPresidentId, setSelectedPresidentId] = useState('');
+    const [presidentSearch, setPresidentSearch] = useState('');
+    const [showPresidentDropdown, setShowPresidentDropdown] = useState(false);
 
     const fetchData = async () => {
         try {
-            const zonesRes = await api.get('/admin/zones');
+            const [zonesRes, workersRes] = await Promise.all([
+                api.get('/admin/zones'),
+                api.get('/admin/workers')
+            ]);
             setZones(zonesRes.data);
+            setWorkers(workersRes.data);
         } catch (error) {
             console.error('Failed to fetch data', error);
         } finally {
@@ -66,7 +84,8 @@ export const ZonesPage = () => {
             const payload = {
                 constituency_name: selectedConstituency,
                 zone_name: zoneName,
-                zone_color: selectedColor
+                zone_color: selectedColor,
+                president_id: selectedPresidentId || null
             };
 
             if (editingZone) {
@@ -98,6 +117,8 @@ export const ZonesPage = () => {
             setSelectedConstituency(zone.constituency_name);
             setZoneName(zone.zone_name);
             setSelectedColor(zone.zone_color);
+            setSelectedPresidentId(zone.president_id || '');
+            setPresidentSearch(zone.president_name || '');
         } else {
             resetForm();
         }
@@ -109,7 +130,10 @@ export const ZonesPage = () => {
         setSelectedConstituency('');
         setZoneName('');
         setSelectedColor('#6366f1');
+        setSelectedPresidentId('');
+        setPresidentSearch('');
         setShowDropdown(false);
+        setShowPresidentDropdown(false);
     };
 
     const filteredZones = zones.filter(z =>
@@ -168,6 +192,7 @@ export const ZonesPage = () => {
                         <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
                             <tr>
                                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50">Constituency & Zone</th>
+                                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50">President</th>
                                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50">Zone Color</th>
                                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right bg-slate-50">Actions</th>
                             </tr>
@@ -175,14 +200,14 @@ export const ZonesPage = () => {
                         <tbody className="divide-y divide-slate-100">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={3} className="px-6 py-8 text-center text-slate-400">
+                                    <td colSpan={4} className="px-6 py-8 text-center text-slate-400">
                                         <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
                                         Loading...
                                     </td>
                                 </tr>
                             ) : paginatedZones.length === 0 ? (
                                 <tr>
-                                    <td colSpan={3} className="px-6 py-8 text-center text-slate-400">
+                                    <td colSpan={4} className="px-6 py-8 text-center text-slate-400">
                                         No zones found matching your search.
                                     </td>
                                 </tr>
@@ -198,6 +223,16 @@ export const ZonesPage = () => {
                                                 <p className="text-xs text-slate-500 font-medium">Zone: {zone.zone_name}</p>
                                             </div>
                                         </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        {zone.president_name ? (
+                                            <div>
+                                                <p className="text-sm font-semibold text-slate-900">{zone.president_name}</p>
+                                                <p className="text-xs text-slate-500 italic">{zone.president_phone}</p>
+                                            </div>
+                                        ) : (
+                                            <span className="text-xs text-slate-400 italic">Not Assigned</span>
+                                        )}
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2">
@@ -314,6 +349,75 @@ export const ZonesPage = () => {
                                     placeholder="e.g. Guwahati East Zone 1"
                                     required
                                 />
+                            </div>
+
+                            <div className="space-y-2 relative">
+                                <label className="text-sm font-medium text-slate-700">Zone President</label>
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search worker..."
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-10 pr-10 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                                        value={presidentSearch}
+                                        onChange={(e) => {
+                                            setPresidentSearch(e.target.value);
+                                            setShowPresidentDropdown(true);
+                                            if (!e.target.value) setSelectedPresidentId('');
+                                        }}
+                                        onFocus={() => setShowPresidentDropdown(true)}
+                                    />
+                                    {presidentSearch && (
+                                        <button
+                                            type="button"
+                                            onClick={() => { setPresidentSearch(''); setSelectedPresidentId(''); setShowPresidentDropdown(true); }}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                </div>
+
+                                {showPresidentDropdown && (
+                                    <div
+                                        className="absolute z-[60] left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl divide-y divide-slate-50"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        {workers
+                                            .filter(w => {
+                                                const matchesSearch = w.name.toLowerCase().includes(presidentSearch.toLowerCase()) || w.phone.includes(presidentSearch);
+                                                const isUnassigned = !w.is_assigned;
+                                                const isCurrentPresident = editingZone && w.id === editingZone.president_id;
+                                                return matchesSearch && (isUnassigned || isCurrentPresident);
+                                            })
+                                            .length === 0 ? (
+                                            <div className="px-4 py-3 text-sm text-slate-400 italic">No workers found</div>
+                                        ) : (
+                                            workers
+                                                .filter(w => {
+                                                    const matchesSearch = w.name.toLowerCase().includes(presidentSearch.toLowerCase()) || w.phone.includes(presidentSearch);
+                                                    const isUnassigned = !w.is_assigned;
+                                                    const isCurrentPresident = editingZone && w.id === editingZone.president_id;
+                                                    return matchesSearch && (isUnassigned || isCurrentPresident);
+                                                })
+                                                .map(w => (
+                                                    <button
+                                                        key={w.id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSelectedPresidentId(w.id);
+                                                            setPresidentSearch(w.name);
+                                                            setShowPresidentDropdown(false);
+                                                        }}
+                                                        className="w-full text-left px-4 py-3 text-sm hover:bg-slate-50 transition-colors"
+                                                    >
+                                                        <div className="font-bold text-slate-900">{w.name}</div>
+                                                        <div className="text-xs text-slate-500">{w.phone}</div>
+                                                    </button>
+                                                ))
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
                             <div className="space-y-2">

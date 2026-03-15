@@ -118,33 +118,36 @@ const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
     const key = `${lat.toFixed(5)},${lng.toFixed(5)}`;
     if (geocodeCache.has(key)) return geocodeCache.get(key)!;
 
-    try {
-        const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-            { headers: { 'Accept-Language': 'en' } }
-        );
-        const data = await res.json();
-        const addr = data.address;
-        const parts: string[] = [];
-        if (addr.amenity || addr.building || addr.shop || addr.office) {
-            parts.push(addr.amenity || addr.building || addr.shop || addr.office);
-        }
-        if (addr.road) parts.push(addr.road);
-        if (addr.neighbourhood) parts.push(addr.neighbourhood);
-        if (addr.suburb) parts.push(addr.suburb);
-        if (addr.village) parts.push(addr.village);
-        if (addr.town) parts.push(addr.town);
-        if (addr.city) parts.push(addr.city);
-        if (addr.county || addr.state_district) parts.push(addr.county || addr.state_district);
-        if (addr.state) parts.push(addr.state);
-
-        const unique = [...new Set(parts)];
-        const name = unique.length > 0 ? unique.join(', ') : (data.display_name?.split(',').slice(0, 4).join(',') || 'Unknown');
-        geocodeCache.set(key, name);
-        return name;
-    } catch {
-        return 'Location unavailable';
+    if (!window.google || !window.google.maps) {
+        return 'Maps API not ready';
     }
+
+    return new Promise((resolve) => {
+        const geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+            if (status === 'OK' && results && results[0]) {
+                const components = results[0].address_components;
+
+                const getComp = (types: string[]) => {
+                    const comp = components.find(c => types.some(t => c.types.includes(t)));
+                    return comp ? comp.long_name : '';
+                };
+
+                const name = getComp(['premise', 'subpremise', 'point_of_interest', 'establishment']);
+                const street = getComp(['route']);
+                const area = getComp(['sublocality_level_1', 'neighborhood', 'sublocality']);
+                const city = getComp(['locality', 'administrative_area_level_2']);
+
+                const parts = [name, street, area, city].filter(Boolean);
+                const finalAddr = parts.length > 0 ? parts.join(', ') : results[0].formatted_address;
+
+                geocodeCache.set(key, finalAddr);
+                resolve(finalAddr);
+            } else {
+                resolve('Location unknown');
+            }
+        });
+    });
 };
 
 // ---- StopPopup: geocodes when the popup opens ----
@@ -291,7 +294,16 @@ export const TrackingPage = () => {
 
             const points = trailRes.data.trail.map((p: TrailPoint) => ({ lat: p.latitude, lng: p.longitude }));
             setTrail(points);
-            setStops(stopsRes.data.stops || []);
+
+            // Deduplicate stops by start_at
+            const rawStops = stopsRes.data.stops || [];
+            const seen = new Set();
+            const uniqueStops = rawStops.filter((s: Stop) => {
+                if (seen.has(s.start_at)) return false;
+                seen.add(s.start_at);
+                return true;
+            });
+            setStops(uniqueStops);
         } catch (error) {
             console.error(error);
         } finally {
