@@ -10,7 +10,8 @@ import {
     Globe,
     ChevronLeft,
     ChevronRight,
-    ClipboardList
+    ClipboardList,
+    Wallet
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -33,6 +34,7 @@ const navItems = [
     { icon: Camera, label: 'Poster Tracker', path: '/posters' },
     { icon: Users, label: 'Opponent Tracker', path: '/opponent-tracker' },
     { icon: Users, label: 'Members', path: '/members' },
+    { icon: Wallet, label: 'Expense Tracker', path: '/expenses' },
 ];
 
 interface SidebarProps {
@@ -64,7 +66,7 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
             </div>
 
             {/* Nav */}
-            <nav className="flex-1 px-2 py-4 space-y-1">
+            <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
                 {navItems.map((item) => (
                     <NavLink
                         key={item.path}
