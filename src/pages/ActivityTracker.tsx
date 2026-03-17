@@ -244,9 +244,9 @@ export const ActivityTrackerPage = () => {
     };
 
     const resetForm = () => {
-        setLeaderName('');
-        setPartyName('');
         setType('opponent');
+        setLeaderName('Pramod Boro');
+        setPartyName('UPPL');
         setImages([]);
         setLat(null);
         setLng(null);
@@ -534,6 +534,39 @@ export const ActivityTrackerPage = () => {
 
                         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
                             <div className="p-6 space-y-6">
+                                {/* Type Selection - Moved to Top */}
+                                <div className="space-y-2">
+                                    <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                                        <Activity className="w-4 h-4 text-teal-600" />
+                                        Activity Type *
+                                    </label>
+                                    <div className="flex gap-4">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setType('opponent');
+                                                setLeaderName('Pramod Boro');
+                                                setPartyName('UPPL');
+                                            }}
+                                            className={`flex-1 py-3 px-4 rounded-xl border font-bold transition-all flex items-center justify-center gap-2 ${type === 'opponent' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                                        >
+                                            <div className={`w-2 h-2 rounded-full ${type === 'opponent' ? 'bg-red-500 animate-pulse' : 'bg-slate-300'}`} />
+                                            Opponent
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setType('our');
+                                                setLeaderName('Biswajit Daimary');
+                                                setPartyName('BJP');
+                                            }}
+                                            className={`flex-1 py-3 px-4 rounded-xl border font-bold transition-all flex items-center justify-center gap-2 ${type === 'our' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                                        >
+                                            <div className={`w-2 h-2 rounded-full ${type === 'our' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                                            Our Activity
+                                        </button>
+                                    </div>
+                                </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     {/* Leader Name */}
                                     <div className="space-y-2">
@@ -600,31 +633,6 @@ export const ActivityTrackerPage = () => {
                                     </div>
                                 </div>
 
-                                {/* Type Selection */}
-                                <div className="space-y-2">
-                                    <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                                        <Activity className="w-4 h-4 text-teal-600" />
-                                        Activity Type *
-                                    </label>
-                                    <div className="flex gap-4">
-                                        <button
-                                            type="button"
-                                            onClick={() => setType('opponent')}
-                                            className={`flex-1 py-3 px-4 rounded-xl border font-bold transition-all flex items-center justify-center gap-2 ${type === 'opponent' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
-                                        >
-                                            <div className={`w-2 h-2 rounded-full ${type === 'opponent' ? 'bg-red-500 animate-pulse' : 'bg-slate-300'}`} />
-                                            Opponent
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setType('our')}
-                                            className={`flex-1 py-3 px-4 rounded-xl border font-bold transition-all flex items-center justify-center gap-2 ${type === 'our' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
-                                        >
-                                            <div className={`w-2 h-2 rounded-full ${type === 'our' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
-                                            Our Activity
-                                        </button>
-                                    </div>
-                                </div>
 
                                 {/* Photos */}
                                 <div className="space-y-2">
@@ -904,11 +912,11 @@ export const ActivityTrackerPage = () => {
                         <div className="flex items-center gap-6">
                             <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-wider">
                                 <div className="flex items-center gap-1.5">
-                                    <div className="w-3 h-3 rounded-full bg-red-900 border border-red-950" />
+                                    <div className="w-3 h-3 rounded-full bg-[#FF0000] border border-red-700" />
                                     <span className="text-slate-600">Opponent</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                    <div className="w-3 h-3 rounded-full bg-emerald-900 border border-emerald-950" />
+                                    <div className="w-3 h-3 rounded-full bg-[#00FF00] border border-green-700" />
                                     <span className="text-slate-600">Our Activity</span>
                                 </div>
                             </div>
@@ -939,8 +947,12 @@ export const ActivityTrackerPage = () => {
                             >
                                 {filteredActivities.map(activity => {
                                     // Calculate radius based on people count (increased ratio for better visibility)
-                                    const radius = 200 + (activity.people_count || 0) * 8;
-                                    const color = activity.type === 'opponent' ? '#7f1d1d' : '#064e3b';
+                                    // Opponent bubbles are made significantly larger as requested
+                                    const radius = activity.type === 'opponent' 
+                                        ? 400 + (activity.people_count || 0) * 15 
+                                        : 200 + (activity.people_count || 0) * 8;
+                                    
+                                    const color = activity.type === 'opponent' ? '#FF0000' : '#00FF00';
                                     
                                     return (
                                         <Circle
