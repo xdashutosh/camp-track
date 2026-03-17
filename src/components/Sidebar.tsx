@@ -11,7 +11,8 @@ import {
     ChevronLeft,
     ChevronRight,
     ClipboardList,
-    Wallet
+    Wallet,
+    Activity
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -34,6 +35,7 @@ const navItems = [
     { icon: Camera, label: 'Poster Tracker', path: '/posters' },
     { icon: Users, label: 'Opponent Tracker', path: '/opponent-tracker' },
     { icon: Users, label: 'Members', path: '/members' },
+    { icon: Activity, label: 'Activity Tracker', path: '/activity-tracker' },
     { icon: Wallet, label: 'Expense Tracker', path: '/expenses' },
 ];
 
