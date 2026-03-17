@@ -912,11 +912,11 @@ export const ActivityTrackerPage = () => {
                         <div className="flex items-center gap-6">
                             <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-wider">
                                 <div className="flex items-center gap-1.5">
-                                    <div className="w-3 h-3 rounded-full bg-[#FF0000] border border-red-700" />
+                                    <div className="w-3 h-3 rounded-full bg-red-900 border border-red-900" />
                                     <span className="text-slate-600">Opponent</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                    <div className="w-3 h-3 rounded-full bg-[#00FF00] border border-green-700" />
+                                    <div className="w-3 h-3 rounded-full bg-green-900 border border-green-900" />
                                     <span className="text-slate-600">Our Activity</span>
                                 </div>
                             </div>
@@ -952,7 +952,7 @@ export const ActivityTrackerPage = () => {
                                         ? 400 + (activity.people_count || 0) * 15 
                                         : 200 + (activity.people_count || 0) * 8;
                                     
-                                    const color = activity.type === 'opponent' ? '#FF0000' : '#00FF00';
+                                    const color = activity.type === 'opponent' ? 'red' : 'green';
                                     
                                     return (
                                         <Circle
@@ -964,7 +964,7 @@ export const ActivityTrackerPage = () => {
                                             onClick={() => setFullScreenActivity(activity)}
                                             options={{
                                                 fillColor: color,
-                                                fillOpacity: 0.35,
+                                                fillOpacity: 1,
                                                 strokeColor: color,
                                                 strokeOpacity: 0.8,
                                                 strokeWeight: 2,
