@@ -86,6 +86,8 @@ export const ActivityTrackerPage = () => {
     const [address, setAddress] = useState('');
     const [peopleCount, setPeopleCount] = useState<string>('');
     const [activityDate, setActivityDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [latInput, setLatInput] = useState('');
+    const [lngInput, setLngInput] = useState('');
 
     // Google Maps refs
     const [map, setMap] = useState<google.maps.Map | null>(null);
@@ -160,6 +162,8 @@ export const ActivityTrackerPage = () => {
         const newLng = e.latLng.lng();
         setLat(newLat);
         setLng(newLng);
+        setLatInput(newLat.toString());
+        setLngInput(newLng.toString());
         reverseGeocode(newLat, newLng);
     };
 
@@ -169,7 +173,27 @@ export const ActivityTrackerPage = () => {
         const newLng = e.latLng.lng();
         setLat(newLat);
         setLng(newLng);
+        setLatInput(newLat.toString());
+        setLngInput(newLng.toString());
         reverseGeocode(newLat, newLng);
+    };
+
+    const onCoordinateChange = (newLatStr: string, newLngStr: string) => {
+        setLatInput(newLatStr);
+        setLngInput(newLngStr);
+        
+        const nLat = parseFloat(newLatStr);
+        const nLng = parseFloat(newLngStr);
+        
+        if (!isNaN(nLat) && !isNaN(nLng) && nLat >= -90 && nLat <= 90 && nLng >= -180 && nLng <= 180) {
+            setLat(nLat);
+            setLng(nLng);
+            reverseGeocode(nLat, nLng);
+            if (map) {
+                map.panTo({ lat: nLat, lng: nLng });
+                map.setZoom(16);
+            }
+        }
     };
 
     // ── Photo upload ──
@@ -250,6 +274,8 @@ export const ActivityTrackerPage = () => {
         setImages([]);
         setLat(null);
         setLng(null);
+        setLatInput('');
+        setLngInput('');
         setAddress('');
         setPeopleCount('');
         setActivityDate(new Date().toISOString().split('T')[0]);
@@ -688,8 +714,32 @@ export const ActivityTrackerPage = () => {
                                     <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                                         <MapPin className="w-4 h-4 text-rose-600" />
                                         Location *
-                                        <span className="text-xs text-slate-400 font-normal">(Drag marker or search)</span>
+                                        <span className="text-xs text-slate-400 font-normal">(Input coordinates or drag marker)</span>
                                     </label>
+
+                                    {/* Manual Coordinates Input */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Latitude</label>
+                                            <input
+                                                type="text"
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-4 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all font-mono"
+                                                placeholder="e.g. 26.1158"
+                                                value={latInput}
+                                                onChange={(e) => onCoordinateChange(e.target.value, lngInput)}
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Longitude</label>
+                                            <input
+                                                type="text"
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-4 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all font-mono"
+                                                placeholder="e.g. 91.7086"
+                                                value={lngInput}
+                                                onChange={(e) => onCoordinateChange(latInput, e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
 
                                     {/* Google Places Autocomplete */}
                                     <div className="relative">
