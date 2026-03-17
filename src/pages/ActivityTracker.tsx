@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Marker, Circle, InfoWindow } from '@react-google-maps/api';
 import api from '../lib/api';
 import {
     Search,
@@ -17,7 +17,8 @@ import {
     ChevronRight,
     Maximize2,
     Navigation,
-    Activity
+    Activity,
+    Layers
 } from 'lucide-react';
 import { Pagination } from '../components/Pagination';
 
@@ -34,6 +35,8 @@ interface ActivityTracker {
     latitude: number;
     longitude: number;
     images: string[];
+    people_count: number;
+    activity_date: string | null;
     worker_name: string;
     worker_phone: string;
     created_at: string;
@@ -57,6 +60,10 @@ export const ActivityTrackerPage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [activeGallery, setActiveGallery] = useState<GalleryState | null>(null);
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [fullScreenActivity, setFullScreenActivity] = useState<ActivityTracker | null>(null);
+    const [showHeatmap, setShowHeatmap] = useState(false);
+    const [hoveredActivity, setHoveredActivity] = useState<ActivityTracker | null>(null);
 
     // Filters state
     const [filterType, setFilterType] = useState<string>('all');
@@ -77,6 +84,8 @@ export const ActivityTrackerPage = () => {
     const [lat, setLat] = useState<number | null>(null);
     const [lng, setLng] = useState<number | null>(null);
     const [address, setAddress] = useState('');
+    const [peopleCount, setPeopleCount] = useState<string>('');
+    const [activityDate, setActivityDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
     // Google Maps refs
     const [map, setMap] = useState<google.maps.Map | null>(null);
@@ -211,6 +220,8 @@ export const ActivityTrackerPage = () => {
                 latitude: lat,
                 longitude: lng,
                 address: address || null,
+                people_count: parseInt(peopleCount) || 0,
+                activity_date: activityDate || null,
             });
             setIsModalOpen(false);
             resetForm();
@@ -240,8 +251,15 @@ export const ActivityTrackerPage = () => {
         setLat(null);
         setLng(null);
         setAddress('');
+        setPeopleCount('');
+        setActivityDate(new Date().toISOString().split('T')[0]);
         setMap(null);
         if (autocompleteInputRef.current) autocompleteInputRef.current.value = '';
+    };
+
+    const panToActivity = (activity: ActivityTracker) => {
+        setSelectedId(activity.id);
+        setFullScreenActivity(activity); // Open full screen map
     };
 
     // ── Gallery nav ──
@@ -306,13 +324,22 @@ export const ActivityTrackerPage = () => {
                         <h1 className="text-2xl font-bold text-slate-900">Activity Tracker</h1>
                         <p className="text-slate-500 text-sm">Track leader activities and ground presence</p>
                     </div>
-                    <button
-                        onClick={() => { resetForm(); setIsModalOpen(true); }}
-                        className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/25"
-                    >
-                        <Plus className="w-5 h-5" />
-                        Add Activity
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => setShowHeatmap(true)}
+                            className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-5 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 border border-indigo-100"
+                        >
+                            <Layers className="w-5 h-5" />
+                            Heatmap View
+                        </button>
+                        <button
+                            onClick={() => { resetForm(); setIsModalOpen(true); }}
+                            className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/25"
+                        >
+                            <Plus className="w-5 h-5" />
+                            Add Activity
+                        </button>
+                    </div>
                 </div>
 
                 {/* Filters */}
@@ -367,6 +394,7 @@ export const ActivityTrackerPage = () => {
                 </div>
             </div>
 
+
             {/* Activity Cards */}
             <div className="min-h-0 flex-shrink overflow-y-auto">
                 {loading ? (
@@ -383,7 +411,11 @@ export const ActivityTrackerPage = () => {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {paginatedActivities.map((activity) => (
-                            <div key={activity.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md hover:border-slate-300 transition-all group flex flex-col">
+                            <div 
+                                key={activity.id} 
+                                onClick={() => panToActivity(activity)}
+                                className={`bg-white border cursor-pointer rounded-2xl overflow-hidden shadow-sm hover:shadow-md hover:border-indigo-300 transition-all group flex flex-col ${selectedId === activity.id ? 'ring-2 ring-indigo-500 border-indigo-400 bg-indigo-50/10' : 'border-slate-200'}`}
+                            >
                                 {/* Image section */}
                                 {activity.images && activity.images.length > 0 ? (
                                     <div
@@ -426,25 +458,40 @@ export const ActivityTrackerPage = () => {
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-col gap-2 text-sm text-slate-700 flex-1">
-                                        {activity.address && (
-                                            <div className="flex items-start gap-2">
-                                                <MapPin className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-                                                <span className="line-clamp-2">{activity.address}</span>
+                                         <div className="flex flex-col gap-2 text-sm text-slate-700 flex-1">
+                                            {activity.address && (
+                                                <div className="flex items-start gap-2">
+                                                    <MapPin className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                                                    <span className="line-clamp-2">{activity.address}</span>
+                                                </div>
+                                            )}
+                                            
+                                            <div className="grid grid-cols-2 gap-2 mt-1">
+                                                <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                                    <p className="text-[10px] text-slate-400 uppercase font-bold mb-0.5">Coordinates</p>
+                                                    <p className="text-[10px] font-mono text-slate-600">{activity.latitude.toFixed(4)}, {activity.longitude.toFixed(4)}</p>
+                                                </div>
+                                                <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                                    <p className="text-[10px] text-slate-400 uppercase font-bold mb-0.5">Crowd Size</p>
+                                                    <p className="text-xs font-bold text-slate-700">{activity.people_count || 0}</p>
+                                                </div>
                                             </div>
-                                        )}
-                                        <div className="flex items-center gap-2 mt-auto">
-                                            <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center text-[10px] font-bold text-indigo-600 border border-indigo-200">
-                                                {activity.worker_name.charAt(0)}
+
+                                            <div className="flex items-center gap-2 mt-auto">
+                                                <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center text-[10px] font-bold text-indigo-600 border border-indigo-200">
+                                                    {activity.worker_name.charAt(0)}
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] text-slate-400 uppercase font-bold">Reported By</span>
+                                                    <span className="text-xs font-semibold text-slate-700">{activity.worker_name}</span>
+                                                </div>
                                             </div>
-                                            <span className="text-xs text-slate-500">Reported by <span className="font-semibold text-slate-700">{activity.worker_name}</span></span>
                                         </div>
-                                    </div>
 
                                     <div className="pt-3 flex items-center justify-between border-t border-slate-100 mt-auto">
-                                        <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
-                                            <Calendar className="w-3.5 h-3.5" />
-                                            {new Date(activity.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                                        <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-bold bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
+                                            <Calendar className="w-3 h-3" />
+                                            ACTIVITY: {activity.activity_date ? new Date(activity.activity_date).toLocaleDateString([], { dateStyle: 'medium' }) : 'N/A'}
                                         </div>
                                         <button
                                             onClick={() => handleDelete(activity.id)}
@@ -517,6 +564,38 @@ export const ActivityTrackerPage = () => {
                                             onChange={e => setPartyName(e.target.value)}
                                             placeholder="Enter party name"
                                             required
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Activity Date */}
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                                            <Calendar className="w-4 h-4 text-indigo-600" />
+                                            Date of Activity *
+                                        </label>
+                                        <input
+                                            type="date"
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all"
+                                            value={activityDate}
+                                            onChange={e => setActivityDate(e.target.value)}
+                                            required
+                                        />
+                                    </div>
+
+                                    {/* People Count */}
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                                            <User className="w-4 h-4 text-rose-600" />
+                                            People Gathered
+                                        </label>
+                                        <input
+                                            type="number"
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30 focus:border-rose-400 transition-all"
+                                            value={peopleCount}
+                                            onChange={e => setPeopleCount(e.target.value)}
+                                            placeholder="Estimated number of people"
                                         />
                                     </div>
                                 </div>
@@ -715,6 +794,196 @@ export const ActivityTrackerPage = () => {
                             alt={`Preview ${activeGallery.index + 1}`}
                             className="max-w-full max-h-full object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-200"
                         />
+                    </div>
+                </div>
+            )}
+
+            {/* Full Screen Map View */}
+            {fullScreenActivity && (
+                <div className="fixed inset-0 z-[150] bg-white flex flex-col">
+                    <div className="h-16 border-b border-slate-200 flex items-center justify-between px-6 bg-white shrink-0">
+                        <div className="flex items-center gap-4">
+                            <button 
+                                onClick={() => setFullScreenActivity(null)}
+                                className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors flex items-center gap-2"
+                            >
+                                <ChevronLeft className="w-5 h-5" />
+                                <span className="font-bold text-sm">Back to List</span>
+                            </button>
+                            <div className="w-px h-6 bg-slate-200" />
+                            <div>
+                                <h2 className="text-base font-bold text-slate-900 leading-tight">{fullScreenActivity.leader_name}</h2>
+                                <p className="text-xs text-slate-500">{fullScreenActivity.address || 'Location View'}</p>
+                            </div>
+                        </div>
+                        <div className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 ${fullScreenActivity.type === 'opponent' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                            <Activity className="w-3.5 h-3.5" />
+                            {fullScreenActivity.type === 'opponent' ? 'Opponent' : 'Our Activity'}
+                        </div>
+                    </div>
+                    
+                    <div className="flex-1 relative">
+                        {isLoaded ? (
+                            <GoogleMap
+                                mapContainerStyle={{ height: '100%', width: '100%' }}
+                                center={{ lat: fullScreenActivity.latitude, lng: fullScreenActivity.longitude }}
+                                zoom={17}
+                                options={{
+                                    mapTypeControl: true,
+                                    streetViewControl: true,
+                                    fullscreenControl: true,
+                                }}
+                            >
+                                <Marker
+                                    position={{ lat: fullScreenActivity.latitude, lng: fullScreenActivity.longitude }}
+                                    icon={{
+                                        url: fullScreenActivity.type === 'opponent' 
+                                            ? 'http://maps.google.com/mapfiles/ms/icons/red-dot.png' 
+                                            : 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
+                                    }}
+                                />
+                            </GoogleMap>
+                        ) : (
+                            <div className="flex items-center justify-center h-full text-slate-400">
+                                <Loader2 className="w-8 h-8 animate-spin mr-2" />
+                                Loading Full Map...
+                            </div>
+                        )}
+
+                        {/* Floating Info Card */}
+                        <div className="absolute bottom-10 left-10 max-w-sm w-full bg-white/90 backdrop-blur-md p-6 rounded-3xl border border-slate-200 shadow-2xl space-y-4">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-indigo-500/30">
+                                    {fullScreenActivity.leader_name.charAt(0)}
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="font-bold text-slate-900">{fullScreenActivity.leader_name}</h3>
+                                    <p className="text-xs text-slate-500 font-medium">{fullScreenActivity.party_name}</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2.5">
+                                <div className="flex items-center justify-between text-xs py-2 border-b border-slate-100">
+                                    <span className="text-slate-500">Crowd Size</span>
+                                    <span className="font-bold text-slate-900">{fullScreenActivity.people_count || 0}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-xs py-2 border-b border-slate-100">
+                                    <span className="text-slate-500">Activity Date</span>
+                                    <span className="font-bold text-slate-900">
+                                        {fullScreenActivity.activity_date ? new Date(fullScreenActivity.activity_date).toLocaleDateString([], { dateStyle: 'long' }) : 'N/A'}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between text-xs py-2">
+                                    <span className="text-slate-500">Reported By</span>
+                                    <span className="font-bold text-slate-900">{fullScreenActivity.worker_name}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Heatmap View Overlay */}
+            {showHeatmap && (
+                <div className="fixed inset-0 z-[160] bg-white flex flex-col">
+                    <div className="h-16 border-b border-slate-200 flex items-center justify-between px-6 bg-white shrink-0">
+                        <div className="flex items-center gap-4">
+                            <button 
+                                onClick={() => setShowHeatmap(false)}
+                                className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors flex items-center gap-2"
+                            >
+                                <ChevronLeft className="w-5 h-5" />
+                                <span className="font-bold text-sm">Close Heatmap</span>
+                            </button>
+                            <div className="w-px h-6 bg-slate-200" />
+                            <div className="flex items-center gap-2">
+                                <Layers className="w-5 h-5 text-indigo-600" />
+                                <h2 className="text-base font-bold text-slate-900">Activity Heatmap</h2>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-wider">
+                                <div className="flex items-center gap-1.5">
+                                    <div className="w-3 h-3 rounded-full bg-red-900 border border-red-950" />
+                                    <span className="text-slate-600">Opponent</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <div className="w-3 h-3 rounded-full bg-emerald-900 border border-emerald-950" />
+                                    <span className="text-slate-600">Our Activity</span>
+                                </div>
+                            </div>
+                            <div className="bg-slate-100 px-3 py-1.5 rounded-lg text-[10px] font-bold text-slate-500">
+                                BUBBLE SIZE = CROWD SIZE
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex-1 relative">
+                        {isLoaded ? (
+                            <GoogleMap
+                                mapContainerStyle={{ height: '100%', width: '100%' }}
+                                center={activities.length > 0 ? { lat: activities[0].latitude, lng: activities[0].longitude } : { lat: 26.1158, lng: 91.7086 }}
+                                zoom={12}
+                                options={{
+                                    mapTypeControl: true,
+                                    streetViewControl: true,
+                                    fullscreenControl: true,
+                                    styles: [
+                                        {
+                                            featureType: 'all',
+                                            elementType: 'labels.text.fill',
+                                            stylers: [{ color: '#747474' }]
+                                        }
+                                    ]
+                                }}
+                            >
+                                {filteredActivities.map(activity => {
+                                    // Calculate radius based on people count (increased ratio for better visibility)
+                                    const radius = 200 + (activity.people_count || 0) * 8;
+                                    const color = activity.type === 'opponent' ? '#7f1d1d' : '#064e3b';
+                                    
+                                    return (
+                                        <Circle
+                                            key={activity.id}
+                                            center={{ lat: activity.latitude, lng: activity.longitude }}
+                                            radius={radius}
+                                            onMouseOver={() => setHoveredActivity(activity)}
+                                            onMouseOut={() => setHoveredActivity(null)}
+                                            onClick={() => setFullScreenActivity(activity)}
+                                            options={{
+                                                fillColor: color,
+                                                fillOpacity: 0.35,
+                                                strokeColor: color,
+                                                strokeOpacity: 0.8,
+                                                strokeWeight: 2,
+                                                zIndex: activity.people_count || 0
+                                            }}
+                                        />
+                                    );
+                                })}
+
+                                {hoveredActivity && (
+                                    <InfoWindow
+                                        position={{ lat: hoveredActivity.latitude, lng: hoveredActivity.longitude }}
+                                        options={{ pixelOffset: new google.maps.Size(0, -10) }}
+                                    >
+                                        <div className="p-2 min-w-[150px]">
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">{hoveredActivity.type}</p>
+                                            <h4 className="font-bold text-slate-900 text-sm mb-0.5">{hoveredActivity.leader_name}</h4>
+                                            <p className="text-xs text-slate-600 mb-2">{hoveredActivity.party_name}</p>
+                                            <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                                                <User className="w-3 h-3 text-indigo-500" />
+                                                <span className="text-xs font-bold text-slate-700">{hoveredActivity.people_count || 0} People</span>
+                                            </div>
+                                        </div>
+                                    </InfoWindow>
+                                )}
+                            </GoogleMap>
+                        ) : (
+                            <div className="flex items-center justify-center h-full">
+                                <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
