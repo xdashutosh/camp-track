@@ -64,12 +64,21 @@ export const ActivityTrackerPage = () => {
     const [fullScreenActivity, setFullScreenActivity] = useState<ActivityTracker | null>(null);
     const [showHeatmap, setShowHeatmap] = useState(false);
     const [hoveredActivity, setHoveredActivity] = useState<ActivityTracker | null>(null);
+    const [heatmapInitialCenter, setHeatmapInitialCenter] = useState<{lat: number, lng: number} | null>(null);
 
     // Filters state
     const [filterType, setFilterType] = useState<string>('all');
     const [filterParty, setFilterParty] = useState<string>('all');
 
     useEffect(() => { setCurrentPage(1); }, [search, filterType, filterParty]);
+
+    useEffect(() => {
+        if (showHeatmap && !heatmapInitialCenter && activities.length > 0) {
+            setHeatmapInitialCenter({ lat: activities[0].latitude, lng: activities[0].longitude });
+        } else if (!showHeatmap) {
+            setHeatmapInitialCenter(null);
+        }
+    }, [showHeatmap, activities, heatmapInitialCenter]);
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
@@ -91,8 +100,6 @@ export const ActivityTrackerPage = () => {
 
     // Google Maps refs
     const [map, setMap] = useState<google.maps.Map | null>(null);
-    const autocompleteInputRef = useRef<HTMLInputElement>(null);
-    const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const fetchActivities = async () => {
@@ -108,38 +115,6 @@ export const ActivityTrackerPage = () => {
 
     useEffect(() => { fetchActivities(); }, []);
 
-    // ── Initialize Places Autocomplete when modal opens ──
-    useEffect(() => {
-        if (!isLoaded || !isModalOpen || !autocompleteInputRef.current) return;
-
-        const timer = setTimeout(() => {
-            if (!autocompleteInputRef.current) return;
-
-            const autocomplete = new google.maps.places.Autocomplete(autocompleteInputRef.current, {
-                componentRestrictions: { country: 'in' },
-                fields: ['formatted_address', 'geometry', 'name'],
-            });
-
-            autocomplete.addListener('place_changed', () => {
-                const place = autocomplete.getPlace();
-                if (place.geometry?.location) {
-                    const newLat = place.geometry.location.lat();
-                    const newLng = place.geometry.location.lng();
-                    setLat(newLat);
-                    setLng(newLng);
-                    setAddress(place.formatted_address || place.name || '');
-                    if (map) {
-                        map.panTo({ lat: newLat, lng: newLng });
-                        map.setZoom(16);
-                    }
-                }
-            });
-
-            autocompleteRef.current = autocomplete;
-        }, 300);
-
-        return () => clearTimeout(timer);
-    }, [isLoaded, isModalOpen, map]);
 
     // ── Reverse geocode on map click or marker drag ──
     const reverseGeocode = (latitude: number, longitude: number) => {
@@ -147,9 +122,6 @@ export const ActivityTrackerPage = () => {
         geocoder.geocode({ location: { lat: latitude, lng: longitude } }, (results, status) => {
             if (status === 'OK' && results && results[0]) {
                 setAddress(results[0].formatted_address);
-                if (autocompleteInputRef.current) {
-                    autocompleteInputRef.current.value = results[0].formatted_address;
-                }
             } else {
                 setAddress(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
             }
@@ -280,7 +252,6 @@ export const ActivityTrackerPage = () => {
         setPeopleCount('');
         setActivityDate(new Date().toISOString().split('T')[0]);
         setMap(null);
-        if (autocompleteInputRef.current) autocompleteInputRef.current.value = '';
     };
 
     const panToActivity = (activity: ActivityTracker) => {
@@ -741,16 +712,6 @@ export const ActivityTrackerPage = () => {
                                         </div>
                                     </div>
 
-                                    {/* Google Places Autocomplete */}
-                                    <div className="relative">
-                                        <Navigation className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                        <input
-                                            ref={autocompleteInputRef}
-                                            type="text"
-                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-9 pr-4 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all font-medium"
-                                            placeholder="Search for a location..."
-                                        />
-                                    </div>
 
                                     {/* Map Container */}
                                     <div className="rounded-2xl overflow-hidden border border-slate-200 h-[300px] relative shadow-inner">
@@ -980,7 +941,7 @@ export const ActivityTrackerPage = () => {
                         {isLoaded ? (
                             <GoogleMap
                                 mapContainerStyle={{ height: '100%', width: '100%' }}
-                                center={activities.length > 0 ? { lat: activities[0].latitude, lng: activities[0].longitude } : { lat: 26.1158, lng: 91.7086 }}
+                                center={heatmapInitialCenter || { lat: 26.1158, lng: 91.7086 }}
                                 zoom={12}
                                 options={{
                                     mapTypeControl: true,
@@ -997,10 +958,8 @@ export const ActivityTrackerPage = () => {
                             >
                                 {filteredActivities.map(activity => {
                                     // Calculate radius based on people count (increased ratio for better visibility)
-                                    // Opponent bubbles are made significantly larger as requested
-                                    const radius = activity.type === 'opponent' 
-                                        ? 400 + (activity.people_count || 0) * 15 
-                                        : 200 + (activity.people_count || 0) * 8;
+                                    // Both activity types now use the same ratio as requested
+                                    const radius = 400 + (activity.people_count || 0) * 15;
                                     
                                     const color = activity.type === 'opponent' ? 'red' : 'green';
                                     
@@ -1027,7 +986,10 @@ export const ActivityTrackerPage = () => {
                                 {hoveredActivity && (
                                     <InfoWindow
                                         position={{ lat: hoveredActivity.latitude, lng: hoveredActivity.longitude }}
-                                        options={{ pixelOffset: new google.maps.Size(0, -10) }}
+                                        options={{ 
+                                            pixelOffset: new google.maps.Size(0, -10),
+                                            disableAutoPan: true
+                                        }}
                                     >
                                         <div className="p-2 min-w-[150px]">
                                             <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">{hoveredActivity.type}</p>
