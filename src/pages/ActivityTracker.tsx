@@ -16,7 +16,6 @@ import {
     ChevronLeft,
     ChevronRight,
     Maximize2,
-    Navigation,
     Activity,
     Layers
 } from 'lucide-react';
