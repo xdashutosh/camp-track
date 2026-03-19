@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleMap, useJsApiLoader, Marker, Circle, InfoWindow } from '@react-google-maps/api';
 import api from '../lib/api';
 import {
@@ -63,6 +63,7 @@ export const ActivityTrackerPage = () => {
     const [fullScreenActivity, setFullScreenActivity] = useState<ActivityTracker | null>(null);
     const [showHeatmap, setShowHeatmap] = useState(false);
     const [hoveredActivity, setHoveredActivity] = useState<ActivityTracker | null>(null);
+    const [heatmapFilter, setHeatmapFilter] = useState<'all' | 'opponent' | 'our'>('all');
     const [heatmapInitialCenter, setHeatmapInitialCenter] = useState<{lat: number, lng: number} | null>(null);
 
     // Filters state
@@ -903,35 +904,70 @@ export const ActivityTrackerPage = () => {
             {/* Heatmap View Overlay */}
             {showHeatmap && (
                 <div className="fixed inset-0 z-[160] bg-white flex flex-col">
-                    <div className="h-16 border-b border-slate-200 flex items-center justify-between px-6 bg-white shrink-0">
+                    <div className="h-20 border-b border-slate-200 flex items-center justify-between px-6 bg-white shrink-0">
                         <div className="flex items-center gap-4">
                             <button 
                                 onClick={() => setShowHeatmap(false)}
                                 className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors flex items-center gap-2"
                             >
                                 <ChevronLeft className="w-5 h-5" />
-                                <span className="font-bold text-sm">Close Heatmap</span>
+                                <span className="font-bold text-sm">Close</span>
                             </button>
                             <div className="w-px h-6 bg-slate-200" />
-                            <div className="flex items-center gap-2">
-                                <Layers className="w-5 h-5 text-indigo-600" />
-                                <h2 className="text-base font-bold text-slate-900">Activity Heatmap</h2>
+                            <div className="flex flex-col">
+                                <div className="flex items-center gap-2">
+                                    <Layers className="w-4 h-4 text-indigo-600" />
+                                    <h2 className="text-sm font-bold text-slate-900">Activity Heatmap</h2>
+                                </div>
+                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Real-time Visualization</p>
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-6">
-                            <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-wider">
-                                <div className="flex items-center gap-1.5">
-                                    <div className="w-3 h-3 rounded-full bg-red-900 border border-red-900" />
-                                    <span className="text-slate-600">Opponent</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <div className="w-3 h-3 rounded-full bg-green-900 border border-green-900" />
-                                    <span className="text-slate-600">Our Activity</span>
-                                </div>
+                        <div className="flex items-center gap-8">
+                            {/* Heatmap Filters */}
+                            <div className="flex bg-slate-100 p-1 rounded-xl gap-1">
+                                <button
+                                    onClick={() => setHeatmapFilter('all')}
+                                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${heatmapFilter === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    All
+                                </button>
+                                <button
+                                    onClick={() => setHeatmapFilter('opponent')}
+                                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${heatmapFilter === 'opponent' ? 'bg-red-500 text-white shadow-lg shadow-red-500/30' : 'text-slate-500 hover:text-red-600'}`}
+                                >
+                                    Opponent
+                                </button>
+                                <button
+                                    onClick={() => setHeatmapFilter('our')}
+                                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${heatmapFilter === 'our' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' : 'text-slate-500 hover:text-emerald-600'}`}
+                                >
+                                    Our Activity
+                                </button>
                             </div>
-                            <div className="bg-slate-100 px-3 py-1.5 rounded-lg text-[10px] font-bold text-slate-500">
-                                BUBBLE SIZE = CROWD SIZE
+
+                            {/* Crowd Analytics */}
+                            <div className="flex items-center gap-4 border-l border-slate-200 pl-8">
+                                <div className="text-center">
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Total Gathered</p>
+                                    <div className="text-sm font-black text-slate-900 leading-none">
+                                        {activities.reduce((sum, a) => sum + (a.people_count || 0), 0).toLocaleString()}
+                                    </div>
+                                </div>
+                                <div className="w-px h-8 bg-slate-100" />
+                                <div className="text-center">
+                                    <p className="text-[9px] font-bold text-red-400 uppercase tracking-widest mb-0.5">Opponent</p>
+                                    <div className="text-sm font-black text-red-600 leading-none">
+                                        {activities.filter(a => a.type === 'opponent').reduce((sum, a) => sum + (a.people_count || 0), 0).toLocaleString()}
+                                    </div>
+                                </div>
+                                <div className="w-px h-8 bg-slate-100" />
+                                <div className="text-center">
+                                    <p className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest mb-0.5">Our Activity</p>
+                                    <div className="text-sm font-black text-emerald-600 leading-none">
+                                        {activities.filter(a => a.type === 'our').reduce((sum, a) => sum + (a.people_count || 0), 0).toLocaleString()}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -939,6 +975,7 @@ export const ActivityTrackerPage = () => {
                     <div className="flex-1 relative">
                         {isLoaded ? (
                             <GoogleMap
+                                key={heatmapFilter}
                                 mapContainerStyle={{ height: '100%', width: '100%' }}
                                 center={heatmapInitialCenter || { lat: 26.1158, lng: 91.7086 }}
                                 zoom={12}
@@ -955,32 +992,60 @@ export const ActivityTrackerPage = () => {
                                     ]
                                 }}
                             >
-                                {filteredActivities.map(activity => {
-                                    // Calculate radius based on people count (increased ratio for better visibility)
-                                    // Both activity types now use the same ratio as requested
-                                    const radius = 400 + (activity.people_count || 0) * 15;
-                                    
-                                    const color = activity.type === 'opponent' ? 'red' : 'green';
-                                    
-                                    return (
-                                        <Circle
-                                            key={activity.id}
-                                            center={{ lat: activity.latitude, lng: activity.longitude }}
-                                            radius={radius}
-                                            onMouseOver={() => setHoveredActivity(activity)}
-                                            onMouseOut={() => setHoveredActivity(null)}
-                                            onClick={() => setFullScreenActivity(activity)}
-                                            options={{
-                                                fillColor: color,
-                                                fillOpacity: 1,
-                                                strokeColor: color,
-                                                strokeOpacity: 0.8,
-                                                strokeWeight: 2,
-                                                zIndex: activity.people_count || 0
-                                            }}
-                                        />
-                                    );
-                                })}
+                                {activities
+                                    .filter(act => {
+                                        if (heatmapFilter === 'all') return true;
+                                        if (heatmapFilter === 'opponent') return act.type === 'opponent';
+                                        if (heatmapFilter === 'our') return act.type === 'our';
+                                        return false;
+                                    })
+                                    .map(activity => {
+                                        const count = activity.people_count || 0;
+                                        let radius = 600; // 0-100
+                                        if (count > 500) {
+                                            radius = 1500;
+                                        } else if (count > 100) {
+                                            radius = 800;
+                                        }
+                                        
+                                        const color = activity.type === 'opponent' ? 'red' : 'green';
+                                        
+                                        return (
+                                            <React.Fragment key={activity.id}>
+                                                <Circle
+                                                    center={{ lat: activity.latitude, lng: activity.longitude }}
+                                                    radius={radius}
+                                                    onMouseOver={() => setHoveredActivity(activity)}
+                                                    onMouseOut={() => setHoveredActivity(null)}
+                                                    onClick={() => setFullScreenActivity(activity)}
+                                                    options={{
+                                                        fillColor: color,
+                                                        fillOpacity: 1,
+                                                        strokeColor: color,
+                                                        strokeOpacity: 0.8,
+                                                        strokeWeight: 2,
+                                                        zIndex: count
+                                                    }}
+                                                />
+                                                <Marker
+                                                    position={{ lat: activity.latitude, lng: activity.longitude }}
+                                                    label={{
+                                                        text: count.toString(),
+                                                        color: 'white',
+                                                        fontWeight: 'bold',
+                                                        fontSize: '14px'
+                                                    }}
+                                                    icon={{
+                                                        url: 'data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>',
+                                                        anchor: new google.maps.Point(0, 0)
+                                                    }}
+                                                    zIndex={count + 1}
+                                                    onClick={() => setFullScreenActivity(activity)}
+                                                />
+                                            </React.Fragment>
+                                        );
+                                    })
+                                }
 
                                 {hoveredActivity && (
                                     <InfoWindow
