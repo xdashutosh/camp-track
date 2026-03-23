@@ -1027,21 +1027,6 @@ export const ActivityTrackerPage = () => {
                                                         zIndex: count
                                                     }}
                                                 />
-                                                <Marker
-                                                    position={{ lat: activity.latitude, lng: activity.longitude }}
-                                                    label={{
-                                                        text: count.toString(),
-                                                        color: 'white',
-                                                        fontWeight: 'bold',
-                                                        fontSize: '14px'
-                                                    }}
-                                                    icon={{
-                                                        url: 'data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>',
-                                                        anchor: new google.maps.Point(0, 0)
-                                                    }}
-                                                    zIndex={count + 1}
-                                                    onClick={() => setFullScreenActivity(activity)}
-                                                />
                                             </React.Fragment>
                                         );
                                     })

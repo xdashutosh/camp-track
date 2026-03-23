@@ -30,6 +30,7 @@ interface Worker {
     last_seen?: string;
     is_assigned?: boolean;
     assigned_to?: Assignment[];
+    is_track?: boolean;
 }
 
 export const WorkersPage = () => {
@@ -99,6 +100,19 @@ export const WorkersPage = () => {
             fetchWorkers();
         } catch (error: any) {
             alert(error.response?.data?.error || 'Failed to update worker');
+        }
+    };
+
+    const handleToggleTracking = async (worker: Worker) => {
+        try {
+            const newStatus = !worker.is_track;
+            // Optimistic update
+            setWorkers(workers.map(w => w.id === worker.id ? { ...w, is_track: newStatus } : w));
+            await api.patch(`/admin/workers/${worker.id}/tracking`, { is_track: newStatus });
+        } catch {
+            alert('Failed to update tracking status');
+            // Revert on error
+            fetchWorkers();
         }
     };
 
@@ -190,6 +204,7 @@ export const WorkersPage = () => {
                                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50">Worker</th>
                                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50">Phone</th>
                                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50">Status</th>
+                                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50">Tracking</th>
                                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50">Last Seen</th>
                                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right bg-slate-50">Actions</th>
                             </tr>
@@ -237,6 +252,17 @@ export const WorkersPage = () => {
                                                 <XCircle className="w-3 h-3" /> Unassigned
                                             </span>
                                         )}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <button
+                                            onClick={() => handleToggleTracking(worker)}
+                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:ring-offset-1 ${worker.is_track ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                                            title={worker.is_track ? "Tracking Enabled" : "Tracking Disabled"}
+                                        >
+                                            <span 
+                                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${worker.is_track ? 'translate-x-[22px]' : 'translate-x-1'}`}
+                                            />
+                                        </button>
                                     </td>
                                     <td className="px-6 py-4 text-sm text-slate-400">
                                         {worker.last_seen ? new Date(worker.last_seen).toLocaleString() : 'Never'}

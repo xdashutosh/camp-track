@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { GoogleMap, useJsApiLoader, Marker, Polyline, Circle, InfoWindow } from '@react-google-maps/api';
 import api from '../lib/api';
-import { Users, Loader2, Map as MapIcon, RotateCcw, Clock, MapPin, Navigation, Calendar, Filter, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { Users, Loader2, Map as MapIcon, RotateCcw, Clock, MapPin, Navigation, Calendar, Filter, ChevronDown, ChevronUp, X, Search } from 'lucide-react';
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyCSFX5Min2gS2bbqQjSeGWFqE97btxKERg";
 
@@ -244,6 +244,7 @@ export const TrackingPage = () => {
     const [flyTarget, setFlyTarget] = useState<{ lat: number; lng: number } | null>(null);
     const [selectedStop, setSelectedStop] = useState<Stop | null>(null);
     const [map, setMap] = useState<google.maps.Map | null>(null);
+    const [search, setSearch] = useState('');
 
     const { isLoaded } = useJsApiLoader({
         id: 'google-map-script',
@@ -491,11 +492,23 @@ export const TrackingPage = () => {
                                         <RotateCcw className="w-3.5 h-3.5" />
                                     </button>
                                 </div>
+                                <div className="px-2 pb-2">
+                                    <div className="relative">
+                                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                        <input
+                                            type="text"
+                                            placeholder="Search name or phone..."
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-3 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:border-indigo-400 transition-all"
+                                            value={search}
+                                            onChange={(e) => setSearch(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
                                 {loading ? (
                                     <div className="p-4 text-center text-slate-400">
                                         <Loader2 className="w-6 h-6 animate-spin mx-auto" />
                                     </div>
-                                ) : workers.map(w => (
+                                ) : workers.filter(w => w.name.toLowerCase().includes(search.toLowerCase()) || w.phone.includes(search)).map(w => (
                                     <button
                                         key={w.id}
                                         onClick={() => selectWorker(w.id)}
