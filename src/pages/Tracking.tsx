@@ -3,7 +3,7 @@ import { GoogleMap, useJsApiLoader, Marker, Polyline, Circle, InfoWindow } from 
 import api from '../lib/api';
 import { Users, Loader2, Map as MapIcon, RotateCcw, Clock, MapPin, Navigation, Calendar, Filter, ChevronDown, ChevronUp, X, Search } from 'lucide-react';
 
-const GOOGLE_MAPS_API_KEY = "AIzaSyCSFX5Min2gS2bbqQjSeGWFqE97btxKERg";
+const GOOGLE_MAPS_API_KEY = "AIzaSyAyUJIclg6OiMfAHjoJth6P9IGa9fh-uCI";
 
 const containerStyle = {
     width: '100%',
