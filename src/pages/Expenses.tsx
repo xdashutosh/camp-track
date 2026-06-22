@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { Pagination } from '../components/Pagination';
 
-const GOOGLE_MAPS_API_KEY = "AIzaSyAyUJIclg6OiMfAHjoJth6P9IGa9fh-uCI";
+const GOOGLE_MAPS_API_KEY = "AIzaSyAx47gBBjbO0BkGHqEvqnJppg-r00a_mqo";
 const LIBRARIES: ("places")[] = ["places"];
 
 interface Expense {
